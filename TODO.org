@@ -6,6 +6,7 @@
     - [-] main data
       - [X] up to 1994
       - [ ] episode 38 (tag teams)
+	- this requires many-to-many chefs/episodes in the schema
       - [ ] episode 52 (chef name data fixup)
       - [ ] episode 60
       - [ ] post-1994
@@ -23,7 +24,7 @@
     - [ ] extra iron chefs
     - [ ] extra challengers
 
-- [ ] write the whole thing
+- [X] write the whole thing
 
 - [ ] write the file to episode mapping
   - as a sql file?
