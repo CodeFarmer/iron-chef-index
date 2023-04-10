@@ -1,6 +1,6 @@
 # iron-chef-index
 
-A Clojure program to convert the HTML data from [the Wikipedia list of Iron Chef episodes](https://en.wikipedia.org/wiki/List_of_Iron_Chef_episodes) into a sqlite database. The end goal is to combine that with the Internet Archive files for Iron Chef to provide a comprehensive index of episodes by challenger, season, Iron Chef and ingredient.
+A Clojure program to convert the HTML data from [the Wikipedia list of Iron Chef episodes](https://en.wikipedia.org/wiki/List_of_Iron_Chef_episodes) into a sqlite database. The end goal is to combine that with the [Internet Archive files for Iron Chef](https://archive.org/details/iron-chef) to provide a comprehensive index of episodes by challenger, season, Iron Chef and ingredient.
 
 ## Usage
 
@@ -15,6 +15,8 @@ To build the database (from a REPL):
 
 ## Also
 
+* [Wikipedia list of Iron Chef episodes](https://en.wikipedia.org/wiki/List_of_Iron_Chef_episodes)
+* [Iron Chef on the Internet Archive](https://archive.org/details/iron-chef)
 * [Iron Chef Exchange](https://nylon.net/ironchef/)
 * [Iron Chef DB](https://ironchefdb.com/)
 
