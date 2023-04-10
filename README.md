@@ -13,6 +13,11 @@ To run the unit tests (including recreating an empty testing database):
 To build the database (from a REPL):
 > (iron-chef-index.core/execute!)
 
+## Also
+
+* [Iron Chef Exchange](https://nylon.net/ironchef/)
+* [Iron Chef DB](https://ironchefdb.com/)
+
 ## License
 
 Copyright © 2023 Joel Gluth

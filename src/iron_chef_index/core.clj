@@ -16,9 +16,12 @@
   ([conx name cuisine nationality]
    (jdbc/execute-one! conx ["insert into chefs(name, cuisine, nationality) values(?, ?, ?)" name cuisine nationality])))
 
+
+(def fixup-names {"Koji Kobayashi" "Kōji Kobayashi"})
 (defn get-chef-by-name
   [conx name]
-  (jdbc/execute-one! conx ["select * from chefs where name = ?" name]))
+  (let [name (get fixup-names name name)]
+    (jdbc/execute-one! conx ["select * from chefs where name = ?" name])))
 
 ;; html wrangling
 
@@ -104,20 +107,24 @@
 
 (defn process-row-map! [conx table-row-map]
   (let [text-map (modify-map-values table-row-map element-text)
+        episode-id (get text-map "Episode #")
         challenger-nationality (challenger-nationality table-row-map)
         iron-chef-id (get-or-create-chef-id! conx (get text-map "Iron Chef") nil)
         challenger-id (get-or-create-chef-id!
                        conx
                        (remove-bracket-text (get text-map "Challenger"))
                        (get text-map "Challenger Specialty")
-                       challenger-nationality)]
-    (jdbc/execute-one! conx ["insert into episodes(id, air_date, iron_chef_id, challenger_id, theme_ingredient, winner) values(?, ?, ?, ?, ?, ?)"
-                             (get text-map "Episode #")
+                       challenger-nationality)
+        winner-id (:chefs/id (get-chef-by-name conx (get text-map "Winner")))]
+    
+    (jdbc/execute-one! conx ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
+                             episode-id
                              (get text-map "Original airdate")
-                             iron-chef-id
-                             challenger-id
-                             (get text-map "Theme Ingredient")
-                             (:chefs/id (get-chef-by-name conx (get text-map "Winner")))])))
+                             (get text-map "Theme Ingredient")])
+
+    (jdbc/execute-one! conx ["insert into iron_chefs_episodes(iron_chef_id, episode_id) values (?, ?)" iron-chef-id episode-id])
+    (jdbc/execute-one! conx ["insert into challengers_episodes(challenger_id, episode_id) values (?, ?)" challenger-id episode-id])
+    (jdbc/execute-one! conx ["insert into winners_episodes(winner_id, episode_id) values (?, ?)" winner-id episode-id])))
 
 (defn process-table! [conx html-table]
   (doseq [row (table-to-maps html-table)]
@@ -128,4 +135,5 @@
         html-tables (get-tables (parse-html-file))]
     (with-open [conx (jdbc/get-connection ds)]
       (bootstrap-iron-chefs! conx)
-      (process-table! conx (first html-tables)))))
+      (process-table! conx (first html-tables))
+      (process-table! conx (second html-tables)))))

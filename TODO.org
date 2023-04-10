@@ -5,11 +5,17 @@
   - [-] episode code
     - [-] main data
       - [X] up to 1994
-      - [ ] episode 38 (tag teams)
-	- this requires many-to-many chefs/episodes in the schema
-      - [ ] episode 52 (chef name data fixup)
+      - [-] episode 38 (tag teams)
+	- [X] this requires many-to-many chefs/episodes in the schema
+	- [ ] and only one of them has a nationality
+	  - kludge this?
+	  - are there any more of these?
+	    - yeah, ep 190, 239 (3 chefs!)
+      - [X] episode 52 (chef name data fixup)
       - [ ] episode 60
       - [ ] post-1994
+	- [ ] ep 190
+	- [ ] ep 239
     - [ ] include draws
       
   - [ ] file code

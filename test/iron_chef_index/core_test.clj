@@ -23,7 +23,11 @@
              (get-or-create-chef-id! conx "Yutaka Ishinabe" "French"))))
     (testing "chefs are created when absent"
       (is (= (get-or-create-chef-id! conx "Joel Gluth" "French")
-             (:chefs/id (get-chef-by-name conx "Joel Gluth")))))))
+             (:chefs/id (get-chef-by-name conx "Joel Gluth")))))
+
+    (testing "name fixup works"
+      (is (= (get-or-create-chef-id! conx "Kōji Kobayashi" "French")
+             (:chefs/id (get-chef-by-name conx "Koji Kobayashi")))))))
 
 
 (deftest element-text-test
