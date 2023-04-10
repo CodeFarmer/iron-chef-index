@@ -1,0 +1,29 @@
+- [X] read the next-jdbc docs
+- [-] write the insert clj
+  - [X] TDD via a from-scratch database
+  - [X] chef code
+  - [-] episode code
+    - [-] main data
+      - [X] up to 1994
+      - [ ] episode 38 (tag teams)
+      - [ ] episode 52 (chef name data fixup)
+      - [ ] episode 60
+      - [ ] post-1994
+    - [ ] include draws
+      
+  - [ ] file code
+  
+- [-] parse the html
+  - [X] find a beautiful-soup equivalent
+    - hickory
+  - [-] parse the sections including
+    - [X] headers
+    - [X] challenger nationalities
+    - [X] ordinary battles
+    - [ ] extra iron chefs
+    - [ ] extra challengers
+
+- [ ] write the whole thing
+
+- [ ] write the file to episode mapping
+  - as a sql file?
