@@ -1,14 +1,21 @@
 # iron-chef-index
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure program to convert the HTML data from [the Wikipedia list of Iron Chef episodes](https://en.wikipedia.org/wiki/List_of_Iron_Chef_episodes) into a sqlite database. The end goal is to combine that with the Internet Archive files for Iron Chef to provide a comprehensive index of episodes by challenger, season, Iron Chef and ingredient.
 
 ## Usage
 
-FIXME
+To reset the database to its empty state:
+> sqlite3 index.sqlite < index.sql
+
+To run the unit tests (including recreating an empty testing database):
+> ./run-tests.sh
+
+To build the database (from a REPL):
+> (iron-chef-index.core/execute!)
 
 ## License
 
-Copyright © 2023 FIXME
+Copyright © 2023 Joel Gluth
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
