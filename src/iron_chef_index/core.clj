@@ -9,6 +9,11 @@
   [conx]
   (jdbc/execute! conx ["select * from chefs"]))
 
+(defn get-all-episodes
+  "Retrieve all episodes from the database"
+  [conx]
+  (jdbc/execute! conx ["select * from episodes"]))
+
 (defn create-chef!
   "Insert a new chef into the database"
   ([conx name cuisine]
@@ -104,36 +109,58 @@
   (create-chef! conx "Chen Kenichi"       "Chinese")
   (create-chef! conx "Hiroyuki Sakai"     "French"))
 
+(defn add-iron-chef-to-episode! [conx iron-chef-id episode-id]
+  (jdbc/execute-one! conx ["insert into iron_chefs_episodes(iron_chef_id, episode_id) values (?, ?)" iron-chef-id episode-id]))
 
-(defn process-row-map! [conx table-row-map]
+(defn add-challenger-to-episode! [conx challenger-id episode-id]
+  (jdbc/execute-one! conx ["insert into challengers_episodes(challenger_id, episode_id) values (?, ?)" challenger-id episode-id]))
+
+(defn add-winner-to-episode! [conx winner-id episode-id]
+  (jdbc/execute-one! conx ["insert into winners_episodes(winner_id, episode_id) values (?, ?)" winner-id episode-id]))
+
+
+;; ROW PROCESSING
+
+(defn write-iron-chefs! [conx episode-id table-row-map]
   (let [text-map (modify-map-values table-row-map element-text)
-        episode-id (get text-map "Episode #")
-        challenger-nationality (challenger-nationality table-row-map)
-        iron-chef-id (get-or-create-chef-id! conx (get text-map "Iron Chef") nil)
+        iron-chef-id (get-or-create-chef-id! conx (get text-map "Iron Chef") nil)]
+    (add-iron-chef-to-episode! conx iron-chef-id episode-id)))
+
+(defn write-challengers! [conx episode-id table-row-map]
+  (let [challenger-nationality (challenger-nationality table-row-map)
+        text-map (modify-map-values table-row-map element-text)
         challenger-id (get-or-create-chef-id!
                        conx
                        (remove-bracket-text (get text-map "Challenger"))
                        (get text-map "Challenger Specialty")
-                       challenger-nationality)
-        winner-id (:chefs/id (get-chef-by-name conx (get text-map "Winner")))]
+                       challenger-nationality)]
+    (add-challenger-to-episode! conx challenger-id episode-id)))
+
+(defn process-row-map! [conx table-row-map]
+  ;; TODO stop recreating the text-map everywhere
+  (let [text-map (modify-map-values table-row-map element-text)
+        episode-id (get text-map "Episode #")]
     
     (jdbc/execute-one! conx ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
                              episode-id
                              (get text-map "Original airdate")
                              (get text-map "Theme Ingredient")])
 
-    (jdbc/execute-one! conx ["insert into iron_chefs_episodes(iron_chef_id, episode_id) values (?, ?)" iron-chef-id episode-id])
-    (jdbc/execute-one! conx ["insert into challengers_episodes(challenger_id, episode_id) values (?, ?)" challenger-id episode-id])
-    (jdbc/execute-one! conx ["insert into winners_episodes(winner_id, episode_id) values (?, ?)" winner-id episode-id])))
+    (write-iron-chefs! conx episode-id table-row-map)
+    (write-challengers! conx episode-id table-row-map)
+    
+    (add-winner-to-episode! conx (:chefs/id (get-chef-by-name conx (get text-map "Winner"))) episode-id)))
 
 (defn process-table! [conx html-table]
   (doseq [row (table-to-maps html-table)]
     (process-row-map! conx row)))
 
-(defn execute! []
-  (let [ds (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"})
-        html-tables (get-tables (parse-html-file))]
-    (with-open [conx (jdbc/get-connection ds)]
-      (bootstrap-iron-chefs! conx)
-      (process-table! conx (first html-tables))
-      (process-table! conx (second html-tables)))))
+(defn execute! [conx]
+  (let [html-tables (get-tables (parse-html-file))]
+    (bootstrap-iron-chefs! conx)
+    (process-table! conx (first html-tables))
+    (process-table! conx (second html-tables))))
+
+(defn main [argv]
+  (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]
+    (execute! conx)))
