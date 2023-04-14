@@ -6,7 +6,7 @@
 (def ds (jdbc/get-datasource {:dbtype "sqlite" :dbname "unit-tests.sqlite"}))
 
 (deftest chef-test
-  (jdbc/with-transaction [conx ds]
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
     (testing "start out with 0 chefs"
       (is (empty? (get-all-chefs conx))))
     (testing "chef creation"
@@ -27,8 +27,7 @@
 
     (testing "name fixup works"
       (is (= (get-or-create-chef-id! conx "Kōji Kobayashi" "French")
-             (:chefs/id (get-chef-by-name conx "Koji Kobayashi")))))
-    (.rollback conx)))
+             (:chefs/id (get-chef-by-name conx "Koji Kobayashi")))))))
 
 
 (deftest element-text-test
@@ -131,7 +130,7 @@
       (is (= "France" (challenger-nationality jacques-row))))))
 
 (deftest execute-test
-  (jdbc/with-transaction [conx ds]
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
     (execute! conx)
     (testing "After execution, the correct number of episodes is created"
       (is (= 59 (count (get-all-episodes conx)))))
@@ -139,5 +138,4 @@
       (is (= 63 (count (get-all-chefs conx)))))
     ;; TODO this should be derived from clj results not sql
     (testing "The right number of iron chefs should be allocated during the series"
-      (is (= 4 (second (first (jdbc/execute-one! conx ["select count(distinct(iron_chef_id)) from iron_chefs_episodes"]))))))
-    (.rollback conx)))
+      (is (= 4 (second (first (jdbc/execute-one! conx ["select count(distinct(iron_chef_id)) from iron_chefs_episodes"]))))))))
