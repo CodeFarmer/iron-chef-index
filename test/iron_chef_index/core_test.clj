@@ -129,6 +129,24 @@
     (testing "French nationality is correctly deduced in season 1"
       (is (= "France" (challenger-nationality jacques-row))))))
 
+;; this test written as penance because it actually wasn't working, load-bearing typo, and I hadn't noticed
+(deftest episodes-test
+  (let [html-doc (parse-html-file)
+        table-maps (table-to-maps (second (get-tables html-doc)))
+        joel-and-masashi-row (nth table-maps 27)]
+
+    (testing "French nationality is correctly deduced fof the challenger pair in season 1"
+      (is (= "France" (challenger-nationality joel-and-masashi-row))))
+
+    (jdbc/with-transaction [conx ds {:rollback-only true}]
+
+      (process-row-map! conx joel-and-masashi-row)
+      
+      (testing "Iron chef retrieval"
+        (is (= 2 (count (get-all-iron-chefs conx))) "Iron chefs should be retrieved"))
+      (testing "Challenger retrieval"
+        (is (= 2 (count (get-all-challengers conx))) "Challengers should be retrieved")))))
+
 (deftest execute-test
   (jdbc/with-transaction [conx ds {:rollback-only true}]
     (execute! conx)
@@ -136,6 +154,8 @@
       (is (= 59 (count (get-all-episodes conx)))))
     (testing "After execution, the correct number of chefs are created "
       (is (= 63 (count (get-all-chefs conx)))))
-    ;; TODO this should be derived from clj results not sql
+
     (testing "The right number of iron chefs should be allocated during the series"
-      (is (= 4 (second (first (jdbc/execute-one! conx ["select count(distinct(iron_chef_id)) from iron_chefs_episodes"]))))))))
+      (is (= 4 (count (get-all-iron-chefs conx)))))
+    (testing "The right number of challengers should be allocated during the series"
+      (is (= 59 (count (get-all-challengers conx)))))))

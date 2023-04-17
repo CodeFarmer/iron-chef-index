@@ -118,23 +118,53 @@
 (defn add-winner-to-episode! [conx winner-id episode-id]
   (jdbc/execute-one! conx ["insert into winners_episodes(winner_id, episode_id) values (?, ?)" winner-id episode-id]))
 
+(defn get-all-iron-chefs [conx]
+  (jdbc/execute! conx ["select * from chefs where id in (select distinct iron_chef_id from iron_chefs_episodes)"]))
+
+(defn get-all-challengers [conx]
+  (jdbc/execute! conx ["select * from chefs where id in (select distinct challenger_id from challengers_episodes)"]))
+
 
 ;; ROW PROCESSING
 
 (defn write-iron-chefs! [conx episode-id table-row-map]
   (let [text-map (modify-map-values table-row-map element-text)
-        iron-chef-id (get-or-create-chef-id! conx (get text-map "Iron Chef") nil)]
-    (add-iron-chef-to-episode! conx iron-chef-id episode-id)))
+        chef-names (s/split (get text-map "Iron Chef")
+                            #"\s+&\s+")]
+    (doseq [name chef-names]
+      (add-iron-chef-to-episode! conx
+                                 (get-or-create-chef-id! conx name nil)
+                                 episode-id))))
 
 (defn write-challengers! [conx episode-id table-row-map]
-  (let [challenger-nationality (challenger-nationality table-row-map)
-        text-map (modify-map-values table-row-map element-text)
-        challenger-id (get-or-create-chef-id!
-                       conx
-                       (remove-bracket-text (get text-map "Challenger"))
-                       (get text-map "Challenger Specialty")
-                       challenger-nationality)]
-    (add-challenger-to-episode! conx challenger-id episode-id)))
+  (let [text-map (modify-map-values table-row-map element-text)
+        challenger-nationality (challenger-nationality table-row-map)
+        [first-chef-name & chef-names] (s/split (remove-bracket-text (get text-map "Challenger"))
+                              #"\s+&\s+")]
+    (add-challenger-to-episode! conx
+                                (get-or-create-chef-id! conx
+                                                        first-chef-name
+                                                        (get text-map "Challenger Specialty")
+                                                        challenger-nationality)
+                                episode-id)
+
+    (doseq [chef-name chef-names]
+      (add-challenger-to-episode! conx
+                                (get-or-create-chef-id! conx
+                                                        chef-name
+                                                        nil
+                                                        nil)
+                                episode-id))))
+
+(defn write-winners! [conx episode-id table-row-map]
+  (let [text-map (modify-map-values table-row-map element-text)
+        chef-names (s/split (get text-map "Winner")
+                            #"\s+&\s+")]
+    
+    (doseq [name chef-names]
+      (add-winner-to-episode! conx
+                              (:chefs/id (get-chef-by-name conx name))
+                              episode-id))))
 
 (defn process-row-map! [conx table-row-map]
   ;; TODO stop recreating the text-map everywhere
@@ -148,8 +178,7 @@
 
     (write-iron-chefs! conx episode-id table-row-map)
     (write-challengers! conx episode-id table-row-map)
-    
-    (add-winner-to-episode! conx (:chefs/id (get-chef-by-name conx (get text-map "Winner"))) episode-id)))
+    (write-winners! conx episode-id table-row-map)))
 
 (defn process-table! [conx html-table]
   (doseq [row (table-to-maps html-table)]

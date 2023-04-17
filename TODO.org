@@ -5,9 +5,9 @@
   - [-] episode code
     - [-] main data
       - [X] up to 1994
-      - [-] episode 38 (tag teams)
+      - [X] episode 38 (tag teams)
 	- [X] this requires many-to-many chefs/episodes in the schema
-	- [ ] and only one of them has a nationality
+	- [X] and only one of them has a nationality
 	  - kludge this?
 	  - are there any more of these?
 	    - yeah, ep 190, 239 (3 chefs!)
@@ -27,9 +27,13 @@
     - [X] headers
     - [X] challenger nationalities
     - [X] ordinary battles
-    - [ ] extra iron chefs
-    - [ ] extra challengers
-
+    - [-] extra iron chefs
+      - [X] separated by ampersand
+      - [ ] table subcells
+    - [-] extra challengers
+      - [X] separated by ampersand
+      - [ ] table subcells
+	
 - [X] write the whole thing
 
 - [ ] write the file to episode mapping
