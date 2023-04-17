@@ -14,25 +14,25 @@
       - [X] episode 52 (chef name data fixup)
       - [ ] episode 60
       - [ ] post-1994
+	- [ ] ep 160
 	- [ ] ep 190
 	- [ ] ep 239
     - [ ] include draws
       
   - [ ] file code
   
-- [-] parse the html
+- [X] parse the html
   - [X] find a beautiful-soup equivalent
     - hickory
-  - [-] parse the sections including
+  - [X] parse the sections including
     - [X] headers
     - [X] challenger nationalities
     - [X] ordinary battles
-    - [-] extra iron chefs
-      - [X] separated by ampersand
-      - [ ] table subcells
-    - [-] extra challengers
-      - [X] separated by ampersand
-      - [ ] table subcells
+    - [X] extra iron chefs
+    - [X] extra challengers
+    - [ ] challenger vs challenger
+    - [ ] iron chef vs iron chef
+    - [ ] double headers
 	
 - [X] write the whole thing
 
