@@ -1,5 +1,6 @@
 (ns iron-chef-index.core-test
   (:require [clojure.test :refer :all]
+            [clojure.pprint :refer :all]
             [next.jdbc :as jdbc]
             [iron-chef-index.core :refer :all]))
 
@@ -95,7 +96,18 @@
   (testing "map with one value is returned correctly"
     (is (= {:a 2} (modify-map-values {:a 1} inc)))))
 
+(deftest zipmulti-test
+  (testing "empty key and value seqs return an empty map"
+    (is (= {} (zipmulti [] []))))
+  (testing "a single key and value are mapped together"
+    (is (= {:a [1]} (zipmulti [:a] [1]))))
+  (testing "sundry values are ignored"
+    (is (= {:a [1]} (zipmulti [:a] [1 2]))))
+  (testing "repeated keys put their values in the same vector"
+    (is (= {:a [1 3] :b [2]} (zipmulti [:a :b :a] [1 2 3])))))
+
 (deftest html-table-test
+
   (let [html-doc (parse-html-file)]
     (testing "HTML tables are correctly found in the wiki page"
       (is (= 16 (count (get-tables html-doc)))))
@@ -112,7 +124,7 @@
     (testing "tables are converted into lists of ordered maps with the headers as keys and HTML elements as values"
       (let [table-maps (table-to-maps (first (get-tables html-doc)))]
         (is (= 10 (count table-maps)))
-        (is (= "5" (element-text (get (nth table-maps 4) "Episode #"))))
+        (is (= "5" (element-text (first (get (nth table-maps 4) "Episode #")))))
         (comment (is (= "Rokusaburo Michiba"
                         (element-text (get (nth table-maps 5) "Iron Chef")))))))))
 
@@ -145,7 +157,26 @@
       (testing "Iron chef retrieval"
         (is (= 2 (count (get-all-iron-chefs conx))) "Iron chefs should be retrieved"))
       (testing "Challenger retrieval"
-        (is (= 2 (count (get-all-challengers conx))) "Challengers should be retrieved")))))
+        (is (= 2 (count (get-all-challengers conx))) "Challengers should be retrieved")))
+    ))
+
+(deftest annoying-one-off-table-format-test
+  (testing "Episodes with multiple challenger columns are processed correctly"
+    (let [html-doc (parse-html-file)
+          table-maps (table-to-maps (first (get-tables html-doc)))
+          table (nth (get-tables html-doc) 2)]
+          
+          (pprint table)
+          
+          (jdbc/with-transaction [conx ds {:rollback-only true}]
+            
+            ;; two identical Challenger <th/> elements, multiple row-spanning columns meaning you can't simply process one row at a time
+            (process-stupid-table! conx table)
+            
+            (is (= 0 (count (get-all-iron-chefs conx))) "there are no iron chefs in this episode, only challengers")
+            (is (= 2 (count (get-all-challengers conx))) "2 challengers should have been created")
+            ;; TODO
+            (comment "Dont' know if I care about there being two bouts in the same episode. TODO maybe.")))))
 
 (deftest execute-test
   (jdbc/with-transaction [conx ds {:rollback-only true}]

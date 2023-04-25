@@ -76,18 +76,31 @@
    (get-column-headers
     (get-first-row html-table))))
 
+(defn zipmulti
+  "Like zipmap, but allow repeated keys by collecting their values into value vectors"
+  ([key-seq val-seq]
+   (zipmulti {} key-seq val-seq))
+  ([acc key-seq val-seq]
+   (if-let [k (first key-seq)]
+     (recur (assoc acc k (conj (get acc k []) (first val-seq)))
+            (rest key-seq)
+            (rest val-seq))
+     acc)))
+
 (defn table-to-maps [html-table]
   (let [headers (get-headers html-table)
         rows (map get-column-fields (rest (get-rows html-table)))]
-    (map #(zipmap headers %) rows)))
+    (map #(zipmulti headers %) rows)))
 
 (defn modify-map-values [amap f]
   (reduce (fn [a [k v]] (assoc a k (f v)))
           {}
           amap))
 
-(defn challenger-nationality [table-row]
-  (get-in table-row ["Challenger" :content 0 :content 0 :attrs :title]))
+(defn challenger-nationality
+  "Get the first available challenger nationality from the row (ignoring others)"
+  [table-row]
+  (get-in table-row ["Challenger" 0 :content 0 :content 0 :attrs :title]))
 
 ;; processing
 
@@ -127,20 +140,36 @@
 
 ;; ROW PROCESSING
 
+(defn make-text-map
+  "From a row map, make an easy map of the column names to the text of the first field with that column name"
+  [table-row-map]
+  (modify-map-values table-row-map #(element-text (first %))))
+
+(defn get-iron-chef-names [text-map]
+  (if-let [chef-names (get text-map "Iron Chef")]
+    (s/split chef-names
+             #"\s+&\s+")
+    []))
+
 (defn write-iron-chefs! [conx episode-id table-row-map]
-  (let [text-map (modify-map-values table-row-map element-text)
-        chef-names (s/split (get text-map "Iron Chef")
-                            #"\s+&\s+")]
+  (let [text-map (make-text-map table-row-map)
+        chef-names (get-iron-chef-names text-map)]
     (doseq [name chef-names]
       (add-iron-chef-to-episode! conx
                                  (get-or-create-chef-id! conx name nil)
                                  episode-id))))
 
+(defn get-challenger-names [text-map]
+  ;; 
+  (comment (println "get-challenger-names: " (s/split (remove-bracket-text (get text-map "Challenger"))
+                                                      #"\s+&\s+")))
+  (s/split (remove-bracket-text (get text-map "Challenger"))
+           #"\s+&\s+"))
+
 (defn write-challengers! [conx episode-id table-row-map]
-  (let [text-map (modify-map-values table-row-map element-text)
+  (let [text-map (make-text-map table-row-map)
         challenger-nationality (challenger-nationality table-row-map)
-        [first-chef-name & chef-names] (s/split (remove-bracket-text (get text-map "Challenger"))
-                              #"\s+&\s+")]
+        [first-chef-name & chef-names] (get-challenger-names text-map)]
     (add-challenger-to-episode! conx
                                 (get-or-create-chef-id! conx
                                                         first-chef-name
@@ -157,7 +186,7 @@
                                 episode-id))))
 
 (defn write-winners! [conx episode-id table-row-map]
-  (let [text-map (modify-map-values table-row-map element-text)
+  (let [text-map (make-text-map table-row-map)
         chef-names (s/split (get text-map "Winner")
                             #"\s+&\s+")]
     
@@ -168,9 +197,13 @@
 
 (defn process-row-map! [conx table-row-map]
   ;; TODO stop recreating the text-map everywhere
-  (let [text-map (modify-map-values table-row-map element-text)
+  (let [text-map (make-text-map table-row-map)
         episode-id (get text-map "Episode #")]
-    
+
+    ;; Ahh shit. It turns out that not all episodes are actually a
+    ;; single row. And some fields just render spanning multiple rows
+    ;; because fuck you.
+
     (jdbc/execute-one! conx ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
                              episode-id
                              (get text-map "Original airdate")
@@ -184,11 +217,16 @@
   (doseq [row (table-to-maps html-table)]
     (process-row-map! conx row)))
 
+(defn process-stupid-table! [conx html-table]
+  (process-table! conx html-table))
+
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]
     (bootstrap-iron-chefs! conx)
     (process-table! conx (first html-tables))
-    (process-table! conx (second html-tables))))
+    (process-table! conx (second html-tables))
+    (comment
+      (process-table! conx (nth html-tables 2)))))
 
 (defn main [argv]
   (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]

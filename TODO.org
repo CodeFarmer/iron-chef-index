@@ -38,3 +38,7 @@
 
 - [ ] write the file to episode mapping
   - as a sql file?
+
+- [ ] write a little multi map implementation outside this project
+  that implements Associative or whatever that turns out to be called
+  
