@@ -76,13 +76,16 @@
    (get-column-headers
     (get-first-row html-table))))
 
+(defn assoc-multi [a k v]
+  (assoc a k (conj (get a k []) v)))
+
 (defn zipmulti
   "Like zipmap, but allow repeated keys by collecting their values into value vectors"
   ([key-seq val-seq]
    (zipmulti {} key-seq val-seq))
   ([acc key-seq val-seq]
    (if-let [k (first key-seq)]
-     (recur (assoc acc k (conj (get acc k []) (first val-seq)))
+     (recur (assoc-multi acc k (first val-seq))
             (rest key-seq)
             (rest val-seq))
      acc)))
@@ -200,10 +203,6 @@
   (let [text-map (make-text-map table-row-map)
         episode-id (get text-map "Episode #")]
 
-    ;; Ahh shit. It turns out that not all episodes are actually a
-    ;; single row. And some fields just render spanning multiple rows
-    ;; because fuck you.
-
     (jdbc/execute-one! conx ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
                              episode-id
                              (get text-map "Original airdate")
@@ -217,8 +216,32 @@
   (doseq [row (table-to-maps html-table)]
     (process-row-map! conx row)))
 
+(defn spanned-rows-to-map
+  "Given two table rows, with the first row having td elements that span both rows, convert into a single multi-value map with headings as keys"
+  ([headings row-a row-b]
+   (spanned-rows-to-map {} headings row-a row-b))
+  ([acc headings row-a row-b]
+   (if-let [k (first headings)]
+     (let [e1 (first row-a)
+           rowspan (get-in e1 [:attrs :rowspan])
+           acc' (assoc-multi acc k (element-text e1))]
+
+       (recur (if rowspan  ;; assumes this is only ever "2"
+                acc'
+                (assoc-multi acc' k (element-text (first row-b))))
+              (rest headings)
+              (rest row-a)
+              (if rowspan
+                row-b
+                (rest row-b))))
+     acc)))
+
 (defn process-stupid-table! [conx html-table]
-  (process-table! conx html-table))
+  (let [headers (get-headers html-table)
+        rows (get-rows html-table)
+        combined-row (apply (partial spanned-rows-to-map headers)
+                            (map get-column-fields (rest rows)))]
+    (process-row-map! conx combined-row)))
 
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]

@@ -160,23 +160,35 @@
         (is (= 2 (count (get-all-challengers conx))) "Challengers should be retrieved")))
     ))
 
+(deftest spanning-rows-test
+  (let [html-doc (parse-html-file)
+        table (nth (get-tables html-doc) 2)
+        headers (get-headers table)
+        rows (get-rows table)
+        combined-row (apply (partial spanned-rows-to-map headers)
+                            (map get-column-fields (rest rows)))]
+    
+    (is (= ["60"] (get combined-row "Episode #")))
+    (is (= 4 (count (get combined-row "Challenger")))
+        "All 4 challengers (2 per row) should get collected")))
+
 (deftest annoying-one-off-table-format-test
   (testing "Episodes with multiple challenger columns are processed correctly"
     (let [html-doc (parse-html-file)
           table-maps (table-to-maps (first (get-tables html-doc)))
           table (nth (get-tables html-doc) 2)]
           
-          (pprint table)
-          
-          (jdbc/with-transaction [conx ds {:rollback-only true}]
+      (comment (pprint table))
+      
+      (jdbc/with-transaction [conx ds {:rollback-only true}]
             
-            ;; two identical Challenger <th/> elements, multiple row-spanning columns meaning you can't simply process one row at a time
-            (process-stupid-table! conx table)
-            
-            (is (= 0 (count (get-all-iron-chefs conx))) "there are no iron chefs in this episode, only challengers")
-            (is (= 2 (count (get-all-challengers conx))) "2 challengers should have been created")
-            ;; TODO
-            (comment "Dont' know if I care about there being two bouts in the same episode. TODO maybe.")))))
+        ;; two identical Challenger <th/> elements, multiple row-spanning columns meaning you can't simply process one row at a time
+        (process-stupid-table! conx table)
+        
+        (is (= 0 (count (get-all-iron-chefs conx))) "there are no iron chefs in this episode, only challengers")
+        (is (= 4 (count (get-all-challengers conx))) "4 challengers should have been created")
+        ;; TODO
+        (comment "Dont' know if I care about there being two bouts in the same episode. TODO maybe.")))))
 
 (deftest execute-test
   (jdbc/with-transaction [conx ds {:rollback-only true}]
