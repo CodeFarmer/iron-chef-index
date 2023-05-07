@@ -194,7 +194,7 @@
   (jdbc/with-transaction [conx ds {:rollback-only true}]
     (execute! conx)
     (testing "After execution, the correct number of episodes is created"
-      (is (= 59 (count (get-all-episodes conx)))))
+      (is (= 60 (count (get-all-episodes conx)))))
     (testing "After execution, the correct number of chefs are created "
       (is (= 63 (count (get-all-chefs conx)))))
 

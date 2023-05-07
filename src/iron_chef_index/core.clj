@@ -1,5 +1,6 @@
 (ns iron-chef-index.core
   (:require [clojure.string :as s]
+            [clojure.pprint :refer :all]
             [next.jdbc :as jdbc]
             [hickory.core :as h]
             [hickory.select :as hs]))
@@ -162,17 +163,23 @@
                                  (get-or-create-chef-id! conx name nil)
                                  episode-id))))
 
-(defn get-challenger-names [text-map]
-  ;; 
-  (comment (println "get-challenger-names: " (s/split (remove-bracket-text (get text-map "Challenger"))
-                                                      #"\s+&\s+")))
-  (s/split (remove-bracket-text (get text-map "Challenger"))
-           #"\s+&\s+"))
+
+(defn get-challenger-names-multi [row-map]
+  ;; FIXME this is totally broken, why did I think it worked?
+  (flatten (map #(s/split (remove-bracket-text (element-text %)) #"\s+&\s+")
+                (get row-map "Challenger"))))
+
+
+(defn get-winner-names-multi [row-map]
+  (flatten (map #(s/split (remove-bracket-text (element-text %)) #"\s+&\s+")
+                (get row-map "Winner"))))
 
 (defn write-challengers! [conx episode-id table-row-map]
+
   (let [text-map (make-text-map table-row-map)
         challenger-nationality (challenger-nationality table-row-map)
-        [first-chef-name & chef-names] (get-challenger-names text-map)]
+        [first-chef-name & chef-names] (get-challenger-names-multi table-row-map)]
+
     (add-challenger-to-episode! conx
                                 (get-or-create-chef-id! conx
                                                         first-chef-name
@@ -190,9 +197,7 @@
 
 (defn write-winners! [conx episode-id table-row-map]
   (let [text-map (make-text-map table-row-map)
-        chef-names (s/split (get text-map "Winner")
-                            #"\s+&\s+")]
-    
+        chef-names (get-winner-names-multi table-row-map)]
     (doseq [name chef-names]
       (add-winner-to-episode! conx
                               (:chefs/id (get-chef-by-name conx name))
@@ -248,8 +253,7 @@
     (bootstrap-iron-chefs! conx)
     (process-table! conx (first html-tables))
     (process-table! conx (second html-tables))
-    (comment
-      (process-table! conx (nth html-tables 2)))))
+    (process-stupid-table! conx (nth html-tables 2))))
 
 (defn main [argv]
   (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]
