@@ -12,8 +12,11 @@
 	  - are there any more of these?
 	    - yeah, ep 190, 239 (3 chefs!)
       - [X] episode 52 (chef name data fixup)
-      - [ ] episode 60
+      - [X] episode 60
       - [ ] post-1994
+	- [ ] Ep 61 (Toshiro Kandagawa is not actually an Iron Chef)
+	  - [ ] find the episode and watch it (yellowtail battle)
+	  - [ ] specal-case code *sigh*
 	- [ ] ep 160
 	- [ ] ep 190
 	- [ ] ep 239
@@ -21,10 +24,10 @@
       
   - [ ] file code
   
-- [X] parse the html
+- [-] parse the html
   - [X] find a beautiful-soup equivalent
     - hickory
-  - [X] parse the sections including
+  - [-] parse the sections including
     - [X] headers
     - [X] challenger nationalities
     - [X] ordinary battles
