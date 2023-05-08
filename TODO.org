@@ -13,10 +13,16 @@
 	    - yeah, ep 190, 239 (3 chefs!)
       - [X] episode 52 (chef name data fixup)
       - [X] episode 60
-      - [ ] post-1994
-	- [ ] Ep 61 (Toshiro Kandagawa is not actually an Iron Chef)
+      - [-] 1995
+	- [-] Ep 61 (Toshiro Kandagawa is not actually an Iron Chef)
 	  - [ ] find the episode and watch it (yellowtail battle)
-	  - [ ] specal-case code *sigh*
+	    - it's not in the IA archive (should be 301?, season starts at 302)
+	  - [X] specal-case code *sigh*
+	- [ ] ep 73
+	- [ ] ep 99
+	  - three-way rowspan?
+	  - one match with no IC
+      - [ ] post-1995
 	- [ ] ep 160
 	- [ ] ep 190
 	- [ ] ep 239

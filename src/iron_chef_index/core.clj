@@ -15,6 +15,15 @@
   [conx]
   (jdbc/execute! conx ["select * from episodes"]))
 
+
+(defn create-episode!
+  [conx id air-date theme-ingredient]
+  (jdbc/execute-one! conx
+                     ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
+                      id
+                      air-date
+                      theme-ingredient]))
+
 (defn create-chef!
   "Insert a new chef into the database"
   ([conx name cuisine]
@@ -208,10 +217,10 @@
   (let [text-map (make-text-map table-row-map)
         episode-id (get text-map "Episode #")]
 
-    (jdbc/execute-one! conx ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
-                             episode-id
-                             (get text-map "Original airdate")
-                             (get text-map "Theme Ingredient")])
+    (create-episode! conx
+                     episode-id
+                     (get text-map "Original airdate")
+                     (get text-map "Theme Ingredient"))
 
     (write-iron-chefs! conx episode-id table-row-map)
     (write-challengers! conx episode-id table-row-map)
@@ -248,12 +257,58 @@
                             (map get-column-fields (rest rows)))]
     (process-row-map! conx combined-row)))
 
+;; 1995 has a few weirdnesses, like the first episode having Toshiro
+;; Kandagawa listed as an Iron Chef *and* being a double-wide. This is
+;; the point where I lost patience and started brute forcing things,
+;; this whole project having gone on about 50 times longer than I
+;; intended and not actually being necessary for any reason
+
+(defn write-episode-61! [conx]
+  ;; FIXME 1: This is almost the same as code in process-row, move out
+  ;; FIXME 2: Now not all episodes have a single theme
+  ;; ingredient. Isn't that great?
+  (create-episode! conx 61 "January 2, 1995" "Abalone/Yellowtail")
+  
+  (doseq [name ["Toshirō Kandagawa" "Tadaaki Shimizu"]]
+    (add-challenger-to-episode! conx
+                                (:chefs/id (get-chef-by-name conx name))
+                                61))
+  (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))]
+    (add-iron-chef-to-episode! conx
+                               michiba-id
+                               61)
+    (add-winner-to-episode! conx
+                            michiba-id
+                            61)))
+
+(defn write-episode-73!
+  ;; Episode 73 has two iron chefs and two new challengers with the same specialty
+  [conx]
+  (create-chef! conx "Leung Waikei" "Chinese (Cantonese)" "Hong Kong")
+  (create-chef! conx "Chow Chung"   "Chinese (Cantonese)" "Hong Kong")
+  )
+
+(defn process-1995-table! [conx html-table]
+  (let [headers (get-headers html-table)
+        rows (get-rows html-table)
+        row-maps (table-to-maps html-table)]
+    (write-episode-61! conx)
+    (doseq [row (take 11 (drop 2 row-maps))]
+      (process-row-map! conx row))
+    (let [[row-a row-b] (map get-column-fields (take 2 (drop 14 rows)))
+          combined-row (spanned-rows-to-map headers row-a row-b)]
+      (pprint row-a)
+      (pprint row-b)
+      (pprint combined-row))))
+
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]
     (bootstrap-iron-chefs! conx)
     (process-table! conx (first html-tables))
     (process-table! conx (second html-tables))
-    (process-stupid-table! conx (nth html-tables 2))))
+    (process-stupid-table! conx (nth html-tables 2))
+    ;; this next bit will now break
+    (process-1995-table! conx (nth html-tables 3))))
 
 (defn main [argv]
   (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]
