@@ -18,30 +18,34 @@
 	  - [ ] find the episode and watch it (yellowtail battle)
 	    - it's not in the IA archive (should be 301?, season starts at 302)
 	  - [X] specal-case code *sigh*
-	- [ ] ep 73
-	- [ ] ep 99
+	- [X] ep 73
+	- [X] ep 99
 	  - three-way rowspan?
 	  - one match with no IC
+	- [X] ep 101-102
       - [ ] post-1995
+	- [ ] ep 149
 	- [ ] ep 160
 	- [ ] ep 190
 	- [ ] ep 239
-    - [ ] include draws
+    - [X] include draws
       
+  - [ ] Add episode notes
+  - [ ] Add multi-ingredient episodes
   - [ ] file code
   
-- [-] parse the html
+- [X] parse the html
   - [X] find a beautiful-soup equivalent
     - hickory
-  - [-] parse the sections including
+  - [X] parse the sections including
     - [X] headers
     - [X] challenger nationalities
     - [X] ordinary battles
     - [X] extra iron chefs
     - [X] extra challengers
-    - [ ] challenger vs challenger
-    - [ ] iron chef vs iron chef
-    - [ ] double headers
+    - [X] challenger vs challenger
+    - [X] iron chef vs iron chef
+    - [X] double headers
 	
 - [X] write the whole thing
 

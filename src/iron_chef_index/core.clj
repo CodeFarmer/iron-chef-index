@@ -282,11 +282,57 @@
                             61)))
 
 (defn write-episode-73!
-  ;; Episode 73 has two iron chefs and two new challengers with the same specialty
+  ;; Episode 73 has two iron chefs and two new challengers with the
+  ;; same specialty. I gave up at this point.
   [conx]
   (create-chef! conx "Leung Waikei" "Chinese (Cantonese)" "Hong Kong")
   (create-chef! conx "Chow Chung"   "Chinese (Cantonese)" "Hong Kong")
-  )
+  (create-episode! conx 73 "March 31, 1995" "Pork/Spiny Lobster")
+  (add-challenger-to-episode! conx (get-chef-by-name conx "Leung Waikei") 73)
+  (add-challenger-to-episode! conx (get-chef-by-name conx "Chow Chung") 73)
+  (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))]
+    (add-iron-chef-to-episode! conx
+                               michiba-id
+                               73)
+    (add-winner-to-episode! conx
+                            michiba-id
+                            73))
+  (let [chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))]
+    (add-iron-chef-to-episode! conx
+                               chen-id
+                               73)
+    (add-winner-to-episode! conx
+                            chen-id
+                            73)))
+
+(defn write-episode-99! [conx]
+  (create-chef! conx "Pierre Gagnaire" "French" "France")
+  (create-chef! conx "Gianfranco Vissani" "Italian" "Italy")
+  (create-chef! conx "Hsu Cheng" "Chinese (Cantonese)" "Hong Kong")
+  (create-episode! conx 99 "October 6, 1995" "Tuna/Squid/Duck")
+  (add-challenger-to-episode! conx (get-chef-by-name conx "Pierre Gagnaire") 99)
+  (add-challenger-to-episode! conx (get-chef-by-name conx "Gianfranco Vissani") 99)
+  (add-challenger-to-episode! conx (get-chef-by-name conx "Hsu Cheng") 99)
+  (add-winner-to-episode! conx (get-chef-by-name conx "Gianfranco Vissani") 99)
+  (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))]
+    (add-iron-chef-to-episode! conx
+                               michiba-id
+                               99)
+    (add-winner-to-episode! conx
+                            michiba-id
+                            99)))
+
+(defn write-episode-101-102! [conx]
+  (create-chef! conx "Lin Kunbi" "Chinese (Fujian)" "China")
+  (create-episode! conx 101 "October 20, 1995" "Potato")
+  (create-episode! conx 102 "October 27, 1995" "Sweet potato")
+  (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
+        lin-id (:chefs/id (get-chef-by-name conx "Lin Kunbi"))]
+    (add-iron-chef-to-episode! conx michiba-id 101)
+    (add-challenger-to-episode! conx lin-id 101)
+    (add-iron-chef-to-episode! conx michiba-id 102)
+    (add-challenger-to-episode! conx lin-id 102)
+    (add-winner-to-episode! conx michiba-id 102)))
 
 (defn process-1995-table! [conx html-table]
   (let [headers (get-headers html-table)
@@ -295,11 +341,15 @@
     (write-episode-61! conx)
     (doseq [row (take 11 (drop 2 row-maps))]
       (process-row-map! conx row))
-    (let [[row-a row-b] (map get-column-fields (take 2 (drop 14 rows)))
-          combined-row (spanned-rows-to-map headers row-a row-b)]
-      (pprint row-a)
-      (pprint row-b)
-      (pprint combined-row))))
+    (write-episode-73! conx)
+    (doseq [row (take 25 (drop 15 row-maps))]
+      (process-row-map! conx row))
+    (write-episode-99! conx)
+    (process-row-map! conx (nth row-maps 43))
+    (write-episode-101-102! conx)
+    (doseq [row (drop 46 row-maps)]
+      (process-row-map! conx row)))
+  )
 
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]
@@ -307,8 +357,9 @@
     (process-table! conx (first html-tables))
     (process-table! conx (second html-tables))
     (process-stupid-table! conx (nth html-tables 2))
-    ;; this next bit will now break
-    (process-1995-table! conx (nth html-tables 3))))
+    (process-1995-table! conx (nth html-tables 3)))
+  (comment
+    (println (get-all-episodes conx))))
 
 (defn main [argv]
   (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]
