@@ -133,7 +133,8 @@
   (create-chef! conx "Yutaka Ishinabe"    "French")
   (create-chef! conx "Rokusaburo Michiba" "Japanese")
   (create-chef! conx "Chen Kenichi"       "Chinese")
-  (create-chef! conx "Hiroyuki Sakai"     "French"))
+  (create-chef! conx "Hiroyuki Sakai"     "French")
+  (create-chef! conx "Komei Nakamura"     "Japanese"))
 
 (defn add-iron-chef-to-episode! [conx iron-chef-id episode-id]
   (jdbc/execute-one! conx ["insert into iron_chefs_episodes(iron_chef_id, episode_id) values (?, ?)" iron-chef-id episode-id]))
@@ -315,12 +316,8 @@
   (add-challenger-to-episode! conx (get-chef-by-name conx "Hsu Cheng") 99)
   (add-winner-to-episode! conx (get-chef-by-name conx "Gianfranco Vissani") 99)
   (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))]
-    (add-iron-chef-to-episode! conx
-                               michiba-id
-                               99)
-    (add-winner-to-episode! conx
-                            michiba-id
-                            99)))
+    (add-iron-chef-to-episode! conx michiba-id 99)
+    (add-winner-to-episode! conx michiba-id 99)))
 
 (defn write-episode-101-102! [conx]
   (create-chef! conx "Lin Kunbi" "Chinese (Fujian)" "China")
@@ -333,6 +330,22 @@
     (add-iron-chef-to-episode! conx michiba-id 102)
     (add-challenger-to-episode! conx lin-id 102)
     (add-winner-to-episode! conx michiba-id 102)))
+
+(defn write-episode-110! [conx]
+  (create-episode! conx 110 "December 22, 1995" "Chicken")
+  (let [sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
+        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))]
+    (add-iron-chef-to-episode! conx sakai-id 110)
+    (add-iron-chef-to-episode! conx chen-id 110)
+    (add-winner-to-episode! conx chen-id 110)))
+
+(defn write-episode-111! [conx]
+  (create-episode! conx 111 "January 3, 1996" "Beef")
+  (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
+        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))]
+    (add-iron-chef-to-episode! conx michiba-id 111)
+    (add-iron-chef-to-episode! conx chen-id 111)
+    (add-winner-to-episode! conx michiba-id 111)))
 
 (defn process-1995-table! [conx html-table]
   (let [headers (get-headers html-table)
@@ -351,13 +364,47 @@
       (process-row-map! conx row)))
   )
 
+(defn write-episode-124! [conx]
+  (create-chef! conx "Bernard Leprince" "French" "France")
+  (create-episode! conx 124 "April 12, 1996" "Salmon/Lobster")
+  (let [gagnaire-id (:chefs/id (get-chef-by-name conx "Pierre Gagnaire"))
+        leprince-id (:chefs/id (get-chef-by-name conx "Bernard Leprince"))
+        sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
+        nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))]
+    (add-iron-chef-to-episode! conx sakai-id 124)
+    (add-iron-chef-to-episode! conx nakamura-id 124)
+    (add-challenger-to-episode! conx gagnaire-id 124)
+    (add-challenger-to-episode! conx leprince-id 124)
+    (add-winner-to-episode! conx gagnaire-id 124)
+    (add-winner-to-episode! conx leprince-id 124))
+  )
+
+(defn write-episode-149! [conx]
+  )
+
+(defn process-1996-table! [conx html-table]
+  (let [headers (get-headers html-table)
+        rows (get-rows html-table)
+        row-maps (table-to-maps html-table)]
+    (doseq [row (take 12 row-maps)]
+      (process-row-map! conx row))
+    (write-episode-124! conx)
+    (doseq [row (take 24 (drop 14 row-maps))]
+      (process-row-map! conx row))
+    (write-episode-149! conx)
+    (println (get-all-episodes conx))
+    ))
+
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]
     (bootstrap-iron-chefs! conx)
     (process-table! conx (first html-tables))
     (process-table! conx (second html-tables))
     (process-stupid-table! conx (nth html-tables 2))
-    (process-1995-table! conx (nth html-tables 3)))
+    (process-1995-table! conx (nth html-tables 3))
+    (write-episode-110! conx)
+    (write-episode-111! conx)
+    (process-1996-table! conx (nth html-tables 6)))
   (comment
     (println (get-all-episodes conx))))
 

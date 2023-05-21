@@ -23,13 +23,17 @@
 	  - three-way rowspan?
 	  - one match with no IC
 	- [X] ep 101-102
-      - [ ] post-1995
+	- [ ] ep 110
+      - [-] post-1995
+	- [X] ep 111
+	- [X] ep 124
 	- [ ] ep 149
 	- [ ] ep 160
 	- [ ] ep 190
 	- [ ] ep 239
     - [X] include draws
-      
+    - [ ] deal with the two different keiji nakazawas
+        
   - [ ] Add episode notes
   - [ ] Add multi-ingredient episodes
   - [ ] file code
