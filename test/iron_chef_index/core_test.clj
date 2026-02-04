@@ -334,6 +334,59 @@
                (map :battles/theme_ingredient battles))
             "Episode 198 battles should have correct theme ingredients")))))
 
+(deftest multi-battle-episodes-test
+  "Verify episodes with multiple battles have correct battle counts and ingredients"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Episode 61 (1995 New Year Special) has 2 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 61 order by battle_number"])]
+        (is (= 2 (count battles))
+            "Episode 61 should have 2 battles")
+        (is (= ["Abalone" "Yellowtail"]
+               (map :battles/theme_ingredient battles))
+            "Episode 61 battles should have correct theme ingredients")))
+
+    (testing "Episode 73 (Hong Kong Special) has 2 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 73 order by battle_number"])]
+        (is (= 2 (count battles))
+            "Episode 73 should have 2 battles")
+        (is (= ["Pork" "Spiny Lobster"]
+               (map :battles/theme_ingredient battles))
+            "Episode 73 battles should have correct theme ingredients")))
+
+    (testing "Episode 99 (World Cup Special) has 3 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 99 order by battle_number"])]
+        (is (= 3 (count battles))
+            "Episode 99 should have 3 battles")
+        (is (= ["Tuna" "Squid" "Duck"]
+               (map :battles/theme_ingredient battles))
+            "Episode 99 battles should have correct theme ingredients")))
+
+    (testing "Episode 124 (France vs Japan Special) has 2 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 124 order by battle_number"])]
+        (is (= 2 (count battles))
+            "Episode 124 should have 2 battles")
+        (is (= ["Salmon" "Lobster"]
+               (map :battles/theme_ingredient battles))
+            "Episode 124 battles should have correct theme ingredients")))
+
+    (testing "Episode 149 (China vs Japan Special) has 2 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 149 order by battle_number"])]
+        (is (= 2 (count battles))
+            "Episode 149 should have 2 battles")
+        (is (= ["Chicken" "Shark fin"]
+               (map :battles/theme_ingredient battles))
+            "Episode 149 battles should have correct theme ingredients")))
+
+    (testing "Episode 198 (1997 3-battle special) has 3 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 198 order by battle_number"])]
+        (is (= 3 (count battles))
+            "Episode 198 should have 3 battles")
+        (is (= ["Beef" "Lobster" "Foie gras"]
+               (map :battles/theme_ingredient battles))
+            "Episode 198 battles should have correct theme ingredients")))))
+
 ;; Helper to get all battles for an episode
 (defn get-battles-for-episode [conx episode-id]
   (jdbc/execute! conx ["select * from battles where episode_id = ? order by battle_number" episode-id]))
