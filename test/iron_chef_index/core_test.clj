@@ -194,8 +194,24 @@
   (jdbc/with-transaction [conx ds {:rollback-only true}]
     (execute! conx)
     (testing "After execution, the correct number of episodes is created"
-      (is (= 160 ;; end of 1996
+      (is (= 291 ;; all episodes through 1999
              (count (get-all-episodes conx)))))
+    (testing "Specific episodes from TODO file are parsed"
+      ;; Test that episodes mentioned in TODO file are properly handled
+      (let [episodes (get-all-episodes conx)]
+        (is (some #(= (:episodes/id %) 149) episodes) "Episode 149 should be parsed")
+        (is (some #(= (:episodes/id %) 160) episodes) "Episode 160 should be parsed")
+        (is (some #(= (:episodes/id %) 190) episodes) "Episode 190 should be parsed")
+        (is (some #(= (:episodes/id %) 239) episodes) "Episode 239 should be parsed")
+        ;; Also test that the specific chefs from special episodes are created
+        (is (some #(= (:chefs/name %) "Bernard Leprince") (get-all-chefs conx)) "Bernard Leprince should be parsed")
+        (is (some #(= (:chefs/name %) "Lin Kunbi") (get-all-chefs conx)) "Lin Kunbi should be parsed")
+        (is (some #(= (:chefs/name %) "Pierre Gagnaire") (get-all-chefs conx)) "Pierre Gagnaire should be parsed")
+        (is (some #(= (:chefs/name %) "Gianfranco Vissani") (get-all-chefs conx)) "Gianfranco Vissani should be parsed")
+        (is (some #(= (:chefs/name %) "Hsu Cheng") (get-all-chefs conx)) "Hsu Cheng should be parsed")
+        (is (some #(= (:chefs/name %) "Leung Waikei") (get-all-chefs conx)) "Leung Waikei should be parsed")
+        (is (some #(= (:chefs/name %) "Chow Chung") (get-all-chefs conx)) "Chow Chung should be parsed")
+        (is (some #(= (:chefs/name %) "Toshirō Kandagawa") (get-all-chefs conx)) "Toshirō Kandagawa should be parsed")))
     (comment
       (testing "After execution, the correct number of chefs are created "
         (is (= 63 (count (get-all-chefs conx)))))
@@ -204,3 +220,111 @@
         (is (= 4 (count (get-all-iron-chefs conx)))))
       (testing "The right number of challengers should be allocated during the series"
         (is (= 59 (count (get-all-challengers conx))))))))
+
+;; Helper function to get episode by ID
+(defn get-episode-by-id [conx id]
+  (jdbc/execute-one! conx ["select * from episodes where id = ?" id]))
+
+;; Helper to check if an episode's air date falls in a given year
+(defn episode-in-year? [episode year]
+  (when-let [air-date (:episodes/air_date episode)]
+    (.contains air-date (str year))))
+
+(deftest all-episodes-through-1999-test
+  "Verify all episodes from 1 through 291 are parsed and inserted into the database"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [episodes (get-all-episodes conx)
+          episode-ids (set (map :episodes/id episodes))]
+
+      (testing "No gaps in episode numbering from 1 to 291"
+        (doseq [ep-num (range 1 292)]
+          (is (contains? episode-ids ep-num)
+              (str "Episode " ep-num " should exist"))))
+
+      (testing "No episodes beyond 291 exist"
+        (is (empty? (filter #(> (:episodes/id %) 291) episodes))
+            "No episodes above 291 should exist")))))
+
+(deftest episodes-by-year-test
+  "Verify episode counts by year through 1999"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [episodes (get-all-episodes conx)]
+
+      (testing "1993 episodes (1-10)"
+        (let [eps-1993 (filter #(episode-in-year? % "1993") episodes)]
+          (is (>= (count eps-1993) 10)
+              "At least 10 episodes should be from 1993")))
+
+      (testing "1994 episodes"
+        (let [eps-1994 (filter #(episode-in-year? % "1994") episodes)]
+          (is (> (count eps-1994) 0)
+              "There should be episodes from 1994")))
+
+      (testing "1995 episodes include special episodes 61, 73, 99, 101, 102, 110, 111"
+        (doseq [ep-id [61 73 99 101 102 110 111]]
+          (is (get-episode-by-id conx ep-id)
+              (str "Episode " ep-id " (1995 special) should exist"))))
+
+      (testing "1996 episodes include special episodes 124, 149, 160"
+        (doseq [ep-id [124 149 160]]
+          (is (get-episode-by-id conx ep-id)
+              (str "Episode " ep-id " (1996 special) should exist"))))
+
+      (testing "1997 episodes include special episodes 163, 164, 190, 193, 194, 198"
+        (doseq [ep-id [163 164 190 193 194 198]]
+          (is (get-episode-by-id conx ep-id)
+              (str "Episode " ep-id " (1997 special) should exist"))))
+
+      (testing "1998 episodes (209-256)"
+        (doseq [ep-id (range 209 257)]
+          (is (get-episode-by-id conx ep-id)
+              (str "Episode " ep-id " (1998) should exist"))))
+
+      (testing "1999 episodes (257-291)"
+        (doseq [ep-id (range 257 292)]
+          (is (get-episode-by-id conx ep-id)
+              (str "Episode " ep-id " (1999) should exist")))))))
+
+(deftest episode-air-dates-test
+  "Verify key episodes have correct air dates"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "First episode air date"
+      (let [ep1 (get-episode-by-id conx 1)]
+        (is (= "October 10, 1993" (:episodes/air_date ep1))
+            "Episode 1 should air on October 10, 1993")))
+
+    (testing "Episode 61 (1995 New Year special)"
+      (let [ep61 (get-episode-by-id conx 61)]
+        (is (= "January 2, 1995" (:episodes/air_date ep61)))))
+
+    (testing "Episode 160 (1996 New Year's Eve special)"
+      (let [ep160 (get-episode-by-id conx 160)]
+        (is (= "December 31, 1996" (:episodes/air_date ep160)))))
+
+    (testing "Episode 198 (1997 3-battle special)"
+      (let [ep198 (get-episode-by-id conx 198)]
+        (is (= "September 12, 1997" (:episodes/air_date ep198)))))))
+
+(deftest episode-battles-test
+  "Verify episodes have battles created"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Regular episodes have at least one battle"
+      ;; Check a sampling of regular episodes
+      (doseq [ep-id [1 10 50 100 150 200 250 290]]
+        (let [battles (jdbc/execute! conx ["select * from battles where episode_id = ?" ep-id])]
+          (is (>= (count battles) 1)
+              (str "Episode " ep-id " should have at least one battle")))))
+
+    (testing "Episode 198 has 3 battles"
+      (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 198 order by battle_number"])]
+        (is (= 3 (count battles))
+            "Episode 198 should have 3 battles")
+        (is (= ["Beef" "Lobster" "Foie gras"]
+               (map :battles/theme_ingredient battles))
+            "Episode 198 battles should have correct theme ingredients")))))
