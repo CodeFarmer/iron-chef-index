@@ -194,7 +194,7 @@
   (jdbc/with-transaction [conx ds {:rollback-only true}]
     (execute! conx)
     (testing "After execution, the correct number of episodes is created"
-      (is (= 291 ;; all episodes through 1999
+      (is (= 295 ;; episodes 1-291 (through 1999) + 4 special episodes (292-295) in 2000-2002
              (count (get-all-episodes conx)))))
     (testing "Specific episodes from TODO file are parsed"
       ;; Test that episodes mentioned in TODO file are properly handled
@@ -242,9 +242,14 @@
           (is (contains? episode-ids ep-num)
               (str "Episode " ep-num " should exist"))))
 
-      (testing "No episodes beyond 291 exist"
-        (is (empty? (filter #(> (:episodes/id %) 291) episodes))
-            "No episodes above 291 should exist")))))
+      (testing "2000-2002 special episodes exist (292-295)"
+        (doseq [ep-num (range 292 296)]
+          (is (contains? episode-ids ep-num)
+              (str "Special episode " ep-num " should exist"))))
+
+      (testing "No episodes beyond 295 exist"
+        (is (empty? (filter #(> (:episodes/id %) 295) episodes))
+            "No episodes above 295 should exist")))))
 
 (deftest episodes-by-year-test
   "Verify episode counts by year through 1999"
@@ -328,3 +333,102 @@
         (is (= ["Beef" "Lobster" "Foie gras"]
                (map :battles/theme_ingredient battles))
             "Episode 198 battles should have correct theme ingredients")))))
+
+;; Helper to get all battles for an episode
+(defn get-battles-for-episode [conx episode-id]
+  (jdbc/execute! conx ["select * from battles where episode_id = ? order by battle_number" episode-id]))
+
+(deftest special-episodes-2000-2002-test
+  "Verify special episodes from 2000-2002 are parsed and included"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [all-chefs (get-all-chefs conx)
+          chef-names (set (map :chefs/name all-chefs))]
+
+      ;; === 2000 Special Episode Chefs ===
+      (testing "Millennium Cup (January 5, 2000) chefs are created"
+        (is (contains? chef-names "Zhao Renliang")
+            "Zhao Renliang (Millennium Cup challenger) should exist")
+        (is (contains? chef-names "Dominique Bouchet")
+            "Dominique Bouchet (Millennium Cup challenger) should exist"))
+
+      (testing "New York Special (March 28, 2000) chefs are created"
+        (is (contains? chef-names "Masaharu Morimoto")
+            "Masaharu Morimoto (Iron Chef) should exist")
+        (is (contains? chef-names "Bobby Flay")
+            "Bobby Flay (New York Special challenger) should exist"))
+
+      ;; === 2001 Special Episode Chefs ===
+      (testing "21st Century Battles (January 2, 2001) - Kandagawa already exists from episode 61"
+        (is (contains? chef-names "Toshirō Kandagawa")
+            "Toshirō Kandagawa should exist"))
+
+      ;; === 2002 Special Episode Chefs ===
+      (testing "Japan Cup (January 2, 2002) chefs are created"
+        (is (contains? chef-names "Yūichirō Ebisu")
+            "Yūichirō Ebisu (Japan Cup challenger) should exist")
+        (is (contains? chef-names "Kimio Nonaga")
+            "Kimio Nonaga (Japan Cup Iron Chef) should exist")
+        (is (contains? chef-names "Takeshi Tanabe")
+            "Takeshi Tanabe (Japan Cup challenger) should exist")))))
+
+(deftest special-episodes-2000-2002-air-dates-test
+  "Verify special episodes from 2000-2002 have correct air dates"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Millennium Cup (episode 292) has correct air date"
+      (let [ep (get-episode-by-id conx 292)]
+        (is (some? ep) "Millennium Cup episode should exist")
+        (is (= "January 5, 2000" (:episodes/air_date ep)))))
+
+    (testing "New York Special (episode 293) has correct air date"
+      (let [ep (get-episode-by-id conx 293)]
+        (is (some? ep) "New York Special episode should exist")
+        (is (= "March 28, 2000" (:episodes/air_date ep)))))
+
+    (testing "21st Century Battles (episode 294) has correct air date"
+      (let [ep (get-episode-by-id conx 294)]
+        (is (some? ep) "21st Century Battles episode should exist")
+        (is (= "January 2, 2001" (:episodes/air_date ep)))))
+
+    (testing "Japan Cup (episode 295) has correct air date"
+      (let [ep (get-episode-by-id conx 295)]
+        (is (some? ep) "Japan Cup episode should exist")
+        (is (= "January 2, 2002" (:episodes/air_date ep)))))))
+
+(deftest special-episodes-2000-2002-battles-test
+  "Verify special episodes from 2000-2002 have correct battles"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Millennium Cup (episode 292) has 2 battles"
+      (let [battles (get-battles-for-episode conx 292)]
+        (is (= 2 (count battles))
+            "Millennium Cup should have 2 battles")
+        (is (= #{"Abalone" "Kobe beef"}
+               (set (map :battles/theme_ingredient battles)))
+            "Millennium Cup battles should have correct theme ingredients")))
+
+    (testing "New York Special (episode 293) has 1 battle"
+      (let [battles (get-battles-for-episode conx 293)]
+        (is (= 1 (count battles))
+            "New York Special should have 1 battle")
+        (is (= "Rock crab" (:battles/theme_ingredient (first battles)))
+            "New York Special should have Rock crab theme")))
+
+    (testing "21st Century Battles (episode 294) has 2 battles"
+      (let [battles (get-battles-for-episode conx 294)]
+        (is (= 2 (count battles))
+            "21st Century Battles should have 2 battles")
+        (is (= #{"Red snapper" "Spiny lobster"}
+               (set (map :battles/theme_ingredient battles)))
+            "21st Century Battles should have correct theme ingredients")))
+
+    (testing "Japan Cup (episode 295) has 3 battles"
+      (let [battles (get-battles-for-episode conx 295)]
+        (is (= 3 (count battles))
+            "Japan Cup should have 3 battles")
+        (is (= #{"King crab" "Pacific bluefin tuna" "Ingii chicken"}
+               (set (map :battles/theme_ingredient battles)))
+            "Japan Cup battles should have correct theme ingredients")))))

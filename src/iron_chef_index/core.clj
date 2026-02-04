@@ -17,12 +17,28 @@
 
 
 (defn create-episode!
-  [conx id air-date theme-ingredient]
+  "Create an episode with just id and air_date"
+  [conx id air-date]
   (jdbc/execute-one! conx
-                     ["insert into episodes(id, air_date, theme_ingredient) values(?, ?, ?)"
+                     ["insert into episodes(id, air_date) values(?, ?)"
                       id
-                      air-date
-                      theme-ingredient]))
+                      air-date]))
+
+(defn create-battle!
+  "Create a battle within an episode. Returns the battle id."
+  ([conx episode-id theme-ingredient]
+   (create-battle! conx episode-id 1 theme-ingredient))
+  ([conx episode-id battle-number theme-ingredient]
+   (jdbc/execute-one! conx
+                      ["insert into battles(episode_id, battle_number, theme_ingredient) values(?, ?, ?)"
+                       episode-id
+                       battle-number
+                       theme-ingredient])
+   ;; Return the battle id
+   (:battles/id (jdbc/execute-one! conx
+                                   ["select id from battles where episode_id = ? and battle_number = ?"
+                                    episode-id
+                                    battle-number]))))
 
 (defn create-chef!
   "Insert a new chef into the database"
@@ -136,20 +152,40 @@
   (create-chef! conx "Hiroyuki Sakai"     "French")
   (create-chef! conx "Komei Nakamura"     "Japanese"))
 
+(defn add-iron-chef-to-battle! [conx iron-chef-id battle-id]
+  (jdbc/execute-one! conx ["insert into iron_chefs_battles(iron_chef_id, battle_id) values (?, ?)" iron-chef-id battle-id]))
+
+(defn add-challenger-to-battle! [conx challenger-id battle-id]
+  (jdbc/execute-one! conx ["insert into challengers_battles(challenger_id, battle_id) values (?, ?)" challenger-id battle-id]))
+
+(defn add-winner-to-battle! [conx winner-id battle-id]
+  (jdbc/execute-one! conx ["insert into winners_battles(winner_id, battle_id) values (?, ?)" winner-id battle-id]))
+
+;; Backwards compatibility wrappers - for single-battle episodes
+(defn create-episode-with-battle!
+  "Create an episode with a single battle. Returns battle-id for adding chefs/winners."
+  [conx episode-id air-date theme-ingredient]
+  (create-episode! conx episode-id air-date)
+  (create-battle! conx episode-id 1 theme-ingredient))
+
 (defn add-iron-chef-to-episode! [conx iron-chef-id episode-id]
-  (jdbc/execute-one! conx ["insert into iron_chefs_episodes(iron_chef_id, episode_id) values (?, ?)" iron-chef-id episode-id]))
+  ;; Find the first battle for this episode and add chef to it
+  (let [battle-id (:battles/id (jdbc/execute-one! conx ["select id from battles where episode_id = ? order by battle_number limit 1" episode-id]))]
+    (add-iron-chef-to-battle! conx iron-chef-id battle-id)))
 
 (defn add-challenger-to-episode! [conx challenger-id episode-id]
-  (jdbc/execute-one! conx ["insert into challengers_episodes(challenger_id, episode_id) values (?, ?)" challenger-id episode-id]))
+  (let [battle-id (:battles/id (jdbc/execute-one! conx ["select id from battles where episode_id = ? order by battle_number limit 1" episode-id]))]
+    (add-challenger-to-battle! conx challenger-id battle-id)))
 
 (defn add-winner-to-episode! [conx winner-id episode-id]
-  (jdbc/execute-one! conx ["insert into winners_episodes(winner_id, episode_id) values (?, ?)" winner-id episode-id]))
+  (let [battle-id (:battles/id (jdbc/execute-one! conx ["select id from battles where episode_id = ? order by battle_number limit 1" episode-id]))]
+    (add-winner-to-battle! conx winner-id battle-id)))
 
 (defn get-all-iron-chefs [conx]
-  (jdbc/execute! conx ["select * from chefs where id in (select distinct iron_chef_id from iron_chefs_episodes)"]))
+  (jdbc/execute! conx ["select * from chefs where id in (select distinct iron_chef_id from iron_chefs_battles)"]))
 
 (defn get-all-challengers [conx]
-  (jdbc/execute! conx ["select * from chefs where id in (select distinct challenger_id from challengers_episodes)"]))
+  (jdbc/execute! conx ["select * from chefs where id in (select distinct challenger_id from challengers_battles)"]))
 
 
 ;; ROW PROCESSING
@@ -209,8 +245,10 @@
   (let [text-map (make-text-map table-row-map)
         chef-names (get-winner-names-multi table-row-map)]
     (doseq [name chef-names]
+      ;; Winner should already exist (as Iron Chef or challenger)
+      ;; Use get-or-create-chef-id! as defensive measure in case of name mismatch
       (add-winner-to-episode! conx
-                              (:chefs/id (get-chef-by-name conx name))
+                              (get-or-create-chef-id! conx name nil)
                               episode-id))))
 
 (defn process-row-map! [conx table-row-map]
@@ -218,14 +256,16 @@
   (let [text-map (make-text-map table-row-map)
         episode-id (get text-map "Episode #")]
 
-    (create-episode! conx
-                     episode-id
-                     (get text-map "Original airdate")
-                     (get text-map "Theme Ingredient"))
+    ;; Skip malformed rows (e.g., from rowspan issues where episode # is not numeric)
+    (when (and episode-id (re-matches #"\d+" episode-id))
+      (create-episode-with-battle! conx
+                                   episode-id
+                                   (get text-map "Original airdate")
+                                   (get text-map "Theme Ingredient"))
 
-    (write-iron-chefs! conx episode-id table-row-map)
-    (write-challengers! conx episode-id table-row-map)
-    (write-winners! conx episode-id table-row-map)))
+      (write-iron-chefs! conx episode-id table-row-map)
+      (write-challengers! conx episode-id table-row-map)
+      (write-winners! conx episode-id table-row-map))))
 
 (defn process-table! [conx html-table]
   (doseq [row (table-to-maps html-table)]
@@ -268,7 +308,7 @@
   ;; FIXME 1: This is almost the same as code in process-row, move out
   ;; FIXME 2: Now not all episodes have a single theme
   ;; ingredient. Isn't that great?
-  (create-episode! conx 61 "January 2, 1995" "Abalone/Yellowtail")
+  (create-episode-with-battle! conx 61 "January 2, 1995" "Abalone/Yellowtail")
   
   (doseq [name ["Toshirō Kandagawa" "Tadaaki Shimizu"]]
     (add-challenger-to-episode! conx
@@ -288,7 +328,7 @@
   [conx]
   (create-chef! conx "Leung Waikei" "Chinese (Cantonese)" "Hong Kong")
   (create-chef! conx "Chow Chung"   "Chinese (Cantonese)" "Hong Kong")
-  (create-episode! conx 73 "March 31, 1995" "Pork/Spiny Lobster")
+  (create-episode-with-battle! conx 73 "March 31, 1995" "Pork/Spiny Lobster")
   (add-challenger-to-episode! conx (get-chef-by-name conx "Leung Waikei") 73)
   (add-challenger-to-episode! conx (get-chef-by-name conx "Chow Chung") 73)
   (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))]
@@ -310,7 +350,7 @@
   (create-chef! conx "Pierre Gagnaire" "French" "France")
   (create-chef! conx "Gianfranco Vissani" "Italian" "Italy")
   (create-chef! conx "Hsu Cheng" "Chinese (Cantonese)" "Hong Kong")
-  (create-episode! conx 99 "October 6, 1995" "Tuna/Squid/Duck")
+  (create-episode-with-battle! conx 99 "October 6, 1995" "Tuna/Squid/Duck")
   (add-challenger-to-episode! conx (get-chef-by-name conx "Pierre Gagnaire") 99)
   (add-challenger-to-episode! conx (get-chef-by-name conx "Gianfranco Vissani") 99)
   (add-challenger-to-episode! conx (get-chef-by-name conx "Hsu Cheng") 99)
@@ -321,8 +361,8 @@
 
 (defn write-episode-101-102! [conx]
   (create-chef! conx "Lin Kunbi" "Chinese (Fujian)" "China")
-  (create-episode! conx 101 "October 20, 1995" "Potato")
-  (create-episode! conx 102 "October 27, 1995" "Sweet potato")
+  (create-episode-with-battle! conx 101 "October 20, 1995" "Potato")
+  (create-episode-with-battle! conx 102 "October 27, 1995" "Sweet potato")
   (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
         lin-id (:chefs/id (get-chef-by-name conx "Lin Kunbi"))]
     (add-iron-chef-to-episode! conx michiba-id 101)
@@ -332,7 +372,7 @@
     (add-winner-to-episode! conx michiba-id 102)))
 
 (defn write-episode-110! [conx]
-  (create-episode! conx 110 "December 22, 1995" "Chicken")
+  (create-episode-with-battle! conx 110 "December 22, 1995" "Chicken")
   (let [sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
         chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))]
     (add-iron-chef-to-episode! conx sakai-id 110)
@@ -340,7 +380,7 @@
     (add-winner-to-episode! conx chen-id 110)))
 
 (defn write-episode-111! [conx]
-  (create-episode! conx 111 "January 3, 1996" "Beef")
+  (create-episode-with-battle! conx 111 "January 3, 1996" "Beef")
   (let [michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
         chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))]
     (add-iron-chef-to-episode! conx michiba-id 111)
@@ -366,7 +406,7 @@
 
 (defn write-episode-124! [conx]
   (create-chef! conx "Bernard Leprince" "French" "France")
-  (create-episode! conx 124 "April 12, 1996" "Salmon/Lobster")
+  (create-episode-with-battle! conx 124 "April 12, 1996" "Salmon/Lobster")
   (let [gagnaire-id (:chefs/id (get-chef-by-name conx "Pierre Gagnaire"))
         leprince-id (:chefs/id (get-chef-by-name conx "Bernard Leprince"))
         sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
@@ -380,7 +420,218 @@
   )
 
 (defn write-episode-149! [conx]
+  ;; Episode 149 uses rowspan in Wikipedia table causing parsing issues
+  ;; Team battle: 3 Chinese challengers vs Chen Kenichi (Theme: Chicken)
+  ;; Result: Tie between Chen Kenichi and Sun Liping
+  ;; Tie-breaker battle: Chen Kenichi vs Sun Liping (Theme: Shark fin)
+
+  ;; Create the three Chinese (Beijing) challengers
+  (create-chef! conx "Sun Liping" "Chinese (Beijing)" "China")
+  (create-chef! conx "Su Dexing" "Chinese (Beijing)" "China")
+  (create-chef! conx "Zhuang Weijia" "Chinese (Beijing)" "China")
+
+  ;; Create episode with both themes (main battle + tie-breaker)
+  (create-episode-with-battle! conx 149 "October 11, 1996" "Chicken/Shark fin")
+
+  ;; Add Iron Chef
+  (let [chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))]
+    (add-iron-chef-to-episode! conx chen-id 149)
+    ;; Chen Kenichi is a winner (tie)
+    (add-winner-to-episode! conx chen-id 149))
+
+  ;; Add challengers
+  (doseq [name ["Sun Liping" "Su Dexing" "Zhuang Weijia"]]
+    (add-challenger-to-episode! conx
+                                (:chefs/id (get-chef-by-name conx name))
+                                149))
+
+  ;; Sun Liping is also a winner (tie)
+  (add-winner-to-episode! conx
+                          (:chefs/id (get-chef-by-name conx "Sun Liping"))
+                          149))
+
+(defn write-episode-160! [conx]
+  ;; Episode 160 is a special New Year's Eve (Omisoka) episode
+  ;; Iron Chef vs Iron Chef battle (no challenger)
+  ;; Komei Nakamura vs Rokusaburo Michiba
+
+  (create-episode-with-battle! conx 160 "December 31, 1996" "Osechi (Pork, sweet potato, & octopus)")
+
+  ;; Add both Iron Chefs to the episode
+  (let [nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))
+        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))]
+    (add-iron-chef-to-episode! conx nakamura-id 160)
+    (add-iron-chef-to-episode! conx michiba-id 160)
+    ;; Komei Nakamura wins
+    (add-winner-to-episode! conx nakamura-id 160)))
+
+(defn write-episode-190! [conx]
+  ;; Episode 190 is a special Iron Chef team battle
+  ;; Team 1: Chen Kenichi & Komei Nakamura
+  ;; Team 2: Hiroyuki Sakai & Masahiko Kobe
+  ;; All 4 participants are Iron Chefs competing in teams
+  ;; Theme: Watermelon
+  ;; Winners: Hiroyuki Sakai & Masahiko Kobe
+
+  ;; Create Masahiko Kobe if he doesn't exist (later Iron Chef Italian)
+  (when-not (get-chef-by-name conx "Masahiko Kobe")
+    (create-chef! conx "Masahiko Kobe" "Italian"))
+
+  (create-episode-with-battle! conx 190 "August 8, 1997" "Watermelon")
+
+  ;; Add all four Iron Chefs to the episode
+  (let [chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
+        nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))
+        sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
+        kobe-id (:chefs/id (get-chef-by-name conx "Masahiko Kobe"))]
+    (add-iron-chef-to-episode! conx chen-id 190)
+    (add-iron-chef-to-episode! conx nakamura-id 190)
+    (add-iron-chef-to-episode! conx sakai-id 190)
+    (add-iron-chef-to-episode! conx kobe-id 190)
+    ;; Winners: Sakai and Kobe
+    (add-winner-to-episode! conx sakai-id 190)
+    (add-winner-to-episode! conx kobe-id 190)))
+
+(defn write-episode-163! [conx]
+  ;; Episode 163: Hiroyuki Sakai vs Rory Kennedy
+  ;; Theme: European rabbit
+  ;; Result: Tie (both winners)
+
+  (create-episode-with-battle! conx 163 "January 24, 1997" "European rabbit")
+
+  ;; Add Iron Chef Sakai
+  (let [sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))]
+    (add-iron-chef-to-episode! conx sakai-id 163)
+    ;; Sakai is a winner (tie)
+    (add-winner-to-episode! conx sakai-id 163))
+
+  ;; Add challenger Rory Kennedy
+  (let [kennedy-id (get-or-create-chef-id! conx "Rory Kennedy" "Gibier" nil)]
+    (add-challenger-to-episode! conx kennedy-id 163)
+    ;; Kennedy is also a winner (tie)
+    (add-winner-to-episode! conx kennedy-id 163)))
+
+(defn write-episode-164! [conx]
+  ;; Episode 164: Rematch - Hiroyuki Sakai vs Rory Kennedy
+  ;; Theme: European pigeon
+  ;; Wikipedia table has rowspan issues causing malformed data
+
+  (create-episode-with-battle! conx 164 "January 31, 1997" "European pigeon")
+
+  ;; Add Iron Chef Sakai
+  (let [sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))]
+    (add-iron-chef-to-episode! conx sakai-id 164)
+    ;; Sakai wins this time
+    (add-winner-to-episode! conx sakai-id 164))
+
+  ;; Add challenger Rory Kennedy
+  (let [kennedy-id (:chefs/id (get-chef-by-name conx "Rory Kennedy"))]
+    (add-challenger-to-episode! conx kennedy-id 164)))
+
+(defn write-episode-193! [conx]
+  ;; Episode 193: Komei Nakamura vs Yoshinori Kojima
+  ;; Theme: Potato
+  ;; Result: No Contest
+
+  (create-episode-with-battle! conx 193 "August 29, 1997" "Potato")
+
+  ;; Add Iron Chef Nakamura
+  (let [nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))]
+    (add-iron-chef-to-episode! conx nakamura-id 193))
+
+  ;; Add challenger Yoshinori Kojima
+  (let [kojima-id (get-or-create-chef-id! conx "Yoshinori Kojima" "French" nil)]
+    (add-challenger-to-episode! conx kojima-id 193))
+  ;; No Contest - no winner added
   )
+
+(defn write-episode-194! [conx]
+  ;; Episode 194: Rematch - Komei Nakamura vs Yoshinori Kojima
+  ;; Theme: Marbled sole
+  ;; Wikipedia table has rowspan issues causing malformed data
+
+  (create-episode-with-battle! conx 194 "September 5, 1997" "Marbled sole")
+
+  ;; Add Iron Chef Nakamura
+  (let [nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))]
+    (add-iron-chef-to-episode! conx nakamura-id 194)
+    ;; Nakamura wins the rematch
+    (add-winner-to-episode! conx nakamura-id 194))
+
+  ;; Add challenger Yoshinori Kojima
+  (let [kojima-id (:chefs/id (get-chef-by-name conx "Yoshinori Kojima"))]
+    (add-challenger-to-episode! conx kojima-id 194)))
+
+(defn write-episode-198! [conx]
+  ;; Episode 198: Special 3-battle episode (September 12, 1997)
+  ;; Battle 1: Nakamura vs Liu Xikun (Beef) - main battle
+  ;; Battle 2: Passard vs Clark (Lobster) - exhibition
+  ;; Battle 3: Nakamura vs Passard (Foie gras) - exhibition
+  ;; Wikipedia table has rowspan=3 causing malformed data in rows 38-39
+
+  (when-not (get-chef-by-name conx "Liu Xikun")
+    (create-chef! conx "Liu Xikun" "Chinese" "China"))
+  (when-not (get-chef-by-name conx "Alain Passard")
+    (create-chef! conx "Alain Passard" "French" "France"))
+  (when-not (get-chef-by-name conx "Don Clark")
+    (create-chef! conx "Don Clark" "American" "United States"))
+
+  ;; Create episode
+  (create-episode! conx 198 "September 12, 1997")
+
+  ;; Battle 1: Nakamura vs Liu Xikun (Beef)
+  (let [battle1-id (create-battle! conx 198 1 "Beef")
+        nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))
+        liu-id (:chefs/id (get-chef-by-name conx "Liu Xikun"))]
+    (add-iron-chef-to-battle! conx nakamura-id battle1-id)
+    (add-challenger-to-battle! conx liu-id battle1-id)
+    (add-winner-to-battle! conx nakamura-id battle1-id))
+
+  ;; Battle 2: Passard vs Clark (Lobster) - exhibition
+  (let [battle2-id (create-battle! conx 198 2 "Lobster")
+        passard-id (:chefs/id (get-chef-by-name conx "Alain Passard"))
+        clark-id (:chefs/id (get-chef-by-name conx "Don Clark"))]
+    (add-challenger-to-battle! conx passard-id battle2-id)
+    (add-challenger-to-battle! conx clark-id battle2-id)
+    (add-winner-to-battle! conx passard-id battle2-id))
+
+  ;; Battle 3: Nakamura vs Passard (Foie gras) - exhibition
+  (let [battle3-id (create-battle! conx 198 3 "Foie gras")
+        nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))
+        passard-id (:chefs/id (get-chef-by-name conx "Alain Passard"))]
+    (add-iron-chef-to-battle! conx nakamura-id battle3-id)
+    (add-challenger-to-battle! conx passard-id battle3-id)
+    (add-winner-to-battle! conx nakamura-id battle3-id)))
+
+(defn process-1997-table! [conx html-table]
+  ;; Table 8: Episodes 161-208 (1997)
+  ;; Episodes 163-164, 190, 193-194, 198 have special handling
+  (let [row-maps (table-to-maps html-table)]
+    ;; Process rows 0-1 (episodes 161-162)
+    (doseq [row (take 2 row-maps)]
+      (process-row-map! conx row))
+    ;; Episodes 163-164 - special handling due to rowspan/tie
+    (write-episode-163! conx)
+    (write-episode-164! conx)
+    ;; Process rows 4-28 (episodes 165-189)
+    (doseq [row (take 25 (drop 4 row-maps))]
+      (process-row-map! conx row))
+    ;; Episode 190 - special team battle
+    (write-episode-190! conx)
+    ;; Process rows 30-31 (episodes 191-192)
+    (doseq [row (take 2 (drop 30 row-maps))]
+      (process-row-map! conx row))
+    ;; Episodes 193-194 - special handling due to rowspan/no contest
+    (write-episode-193! conx)
+    (write-episode-194! conx)
+    ;; Process rows 34-36 (episodes 195-197)
+    (doseq [row (take 3 (drop 34 row-maps))]
+      (process-row-map! conx row))
+    ;; Episode 198 - special 3-battle episode (rows 37-39 are malformed)
+    (write-episode-198! conx)
+    ;; Process rows 40-49 (episodes 199-208)
+    (doseq [row (drop 40 row-maps)]
+      (process-row-map! conx row))))
 
 (defn process-1996-table! [conx html-table]
   (let [headers (get-headers html-table)
@@ -392,8 +643,132 @@
     (doseq [row (take 24 (drop 14 row-maps))]
       (process-row-map! conx row))
     (write-episode-149! conx)
+    ;; Process remaining rows for 1996 episodes
+    ;; Skip rows 38-39 (episode 149 handled above due to rowspan issues)
+    (doseq [row (drop 40 row-maps)]
+      (process-row-map! conx row))
     (println (get-all-episodes conx))
     ))
+
+;; === 2000-2002 Special Episodes (Table 11) ===
+;; These are special events without numeric episode IDs
+;; We assign IDs 292-295 continuing the sequence after episode 291
+
+(defn write-millennium-cup! [conx]
+  ;; Millennium Cup (January 5, 2000) - Episode 292
+  ;; Battle 1: Chen Kenichi vs Zhao Renliang (Abalone) - Chen wins
+  ;; Battle 2: Rokusaburo Michiba vs Dominique Bouchet (Kobe beef) - Michiba wins
+
+  (when-not (get-chef-by-name conx "Zhao Renliang")
+    (create-chef! conx "Zhao Renliang" "Chinese" "China"))
+  (when-not (get-chef-by-name conx "Dominique Bouchet")
+    (create-chef! conx "Dominique Bouchet" "French" "France"))
+
+  (create-episode! conx 292 "January 5, 2000")
+
+  ;; Battle 1: Chen vs Zhao (Abalone)
+  (let [battle1-id (create-battle! conx 292 1 "Abalone")
+        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
+        zhao-id (:chefs/id (get-chef-by-name conx "Zhao Renliang"))]
+    (add-iron-chef-to-battle! conx chen-id battle1-id)
+    (add-challenger-to-battle! conx zhao-id battle1-id)
+    (add-winner-to-battle! conx chen-id battle1-id))
+
+  ;; Battle 2: Michiba vs Bouchet (Kobe beef)
+  (let [battle2-id (create-battle! conx 292 2 "Kobe beef")
+        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
+        bouchet-id (:chefs/id (get-chef-by-name conx "Dominique Bouchet"))]
+    (add-iron-chef-to-battle! conx michiba-id battle2-id)
+    (add-challenger-to-battle! conx bouchet-id battle2-id)
+    (add-winner-to-battle! conx michiba-id battle2-id)))
+
+(defn write-new-york-special! [conx]
+  ;; New York Special (March 28, 2000) - Episode 293
+  ;; Masaharu Morimoto vs Bobby Flay (Rock crab) - Morimoto wins
+
+  (when-not (get-chef-by-name conx "Masaharu Morimoto")
+    (create-chef! conx "Masaharu Morimoto" "Japanese"))
+  (when-not (get-chef-by-name conx "Bobby Flay")
+    (create-chef! conx "Bobby Flay" "Southwestern" "United States"))
+
+  (create-episode! conx 293 "March 28, 2000")
+
+  (let [battle-id (create-battle! conx 293 1 "Rock crab")
+        morimoto-id (:chefs/id (get-chef-by-name conx "Masaharu Morimoto"))
+        flay-id (:chefs/id (get-chef-by-name conx "Bobby Flay"))]
+    (add-iron-chef-to-battle! conx morimoto-id battle-id)
+    (add-challenger-to-battle! conx flay-id battle-id)
+    (add-winner-to-battle! conx morimoto-id battle-id)))
+
+(defn write-21st-century-battles! [conx]
+  ;; 21st Century Battles (January 2, 2001) - Episode 294
+  ;; Battle 1: Hiroyuki Sakai vs Toshirō Kandagawa (Red snapper) - Kandagawa wins
+  ;; Battle 2: Masaharu Morimoto vs Bobby Flay (Spiny lobster) - Bobby Flay wins
+
+  (create-episode! conx 294 "January 2, 2001")
+
+  ;; Battle 1: Sakai vs Kandagawa (Red snapper)
+  (let [battle1-id (create-battle! conx 294 1 "Red snapper")
+        sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
+        kandagawa-id (:chefs/id (get-chef-by-name conx "Toshirō Kandagawa"))]
+    (add-iron-chef-to-battle! conx sakai-id battle1-id)
+    (add-challenger-to-battle! conx kandagawa-id battle1-id)
+    (add-winner-to-battle! conx kandagawa-id battle1-id))
+
+  ;; Battle 2: Morimoto vs Flay (Spiny lobster)
+  (let [battle2-id (create-battle! conx 294 2 "Spiny lobster")
+        morimoto-id (:chefs/id (get-chef-by-name conx "Masaharu Morimoto"))
+        flay-id (:chefs/id (get-chef-by-name conx "Bobby Flay"))]
+    (add-iron-chef-to-battle! conx morimoto-id battle2-id)
+    (add-challenger-to-battle! conx flay-id battle2-id)
+    (add-winner-to-battle! conx flay-id battle2-id)))
+
+(defn write-japan-cup! [conx]
+  ;; Japan Cup (January 2, 2002) - Episode 295
+  ;; Battle 1: Chen Kenichi vs Yūichirō Ebisu (King crab) - Chen wins
+  ;; Battle 2: Kimio Nonaga vs Takeshi Tanabe (Pacific bluefin tuna) - Kimio Nonaga wins
+  ;; Battle 3: Chen Kenichi vs Kimio Nonaga (Ingii chicken) - Kimio Nonaga wins
+
+  (when-not (get-chef-by-name conx "Yūichirō Ebisu")
+    (create-chef! conx "Yūichirō Ebisu" "Italian" "Japan"))
+  (when-not (get-chef-by-name conx "Kimio Nonaga")
+    (create-chef! conx "Kimio Nonaga" "Japanese" "Japan"))
+  (when-not (get-chef-by-name conx "Takeshi Tanabe")
+    (create-chef! conx "Takeshi Tanabe" "Japanese" "Japan"))
+
+  (create-episode! conx 295 "January 2, 2002")
+
+  ;; Battle 1: Chen vs Ebisu (King crab)
+  (let [battle1-id (create-battle! conx 295 1 "King crab")
+        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
+        ebisu-id (:chefs/id (get-chef-by-name conx "Yūichirō Ebisu"))]
+    (add-iron-chef-to-battle! conx chen-id battle1-id)
+    (add-challenger-to-battle! conx ebisu-id battle1-id)
+    (add-winner-to-battle! conx chen-id battle1-id))
+
+  ;; Battle 2: Nonaga vs Tanabe (Pacific bluefin tuna)
+  (let [battle2-id (create-battle! conx 295 2 "Pacific bluefin tuna")
+        nonaga-id (:chefs/id (get-chef-by-name conx "Kimio Nonaga"))
+        tanabe-id (:chefs/id (get-chef-by-name conx "Takeshi Tanabe"))]
+    (add-iron-chef-to-battle! conx nonaga-id battle2-id)
+    (add-challenger-to-battle! conx tanabe-id battle2-id)
+    (add-winner-to-battle! conx nonaga-id battle2-id))
+
+  ;; Battle 3: Chen vs Nonaga (Ingii chicken)
+  (let [battle3-id (create-battle! conx 295 3 "Ingii chicken")
+        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
+        nonaga-id (:chefs/id (get-chef-by-name conx "Kimio Nonaga"))]
+    (add-iron-chef-to-battle! conx chen-id battle3-id)
+    (add-challenger-to-battle! conx nonaga-id battle3-id)
+    (add-winner-to-battle! conx nonaga-id battle3-id)))
+
+(defn process-2000-2002-specials! [conx]
+  ;; Process 2000-2002 special episodes (Table 11)
+  ;; These are manually written due to complex rowspan structure
+  (write-millennium-cup! conx)
+  (write-new-york-special! conx)
+  (write-21st-century-battles! conx)
+  (write-japan-cup! conx))
 
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]
@@ -404,7 +779,16 @@
     (process-1995-table! conx (nth html-tables 3))
     (write-episode-110! conx)
     (write-episode-111! conx)
-    (process-1996-table! conx (nth html-tables 6)))
+    (process-1996-table! conx (nth html-tables 6))
+    (write-episode-160! conx)
+    ;; 1997 episodes (table 8)
+    (process-1997-table! conx (nth html-tables 8))
+    ;; 1998 episodes (table 9)
+    (process-table! conx (nth html-tables 9))
+    ;; 1999 episodes (table 10)
+    (process-table! conx (nth html-tables 10))
+    ;; 2000-2002 special episodes (table 11)
+    (process-2000-2002-specials! conx))
   (comment
     (println (get-all-episodes conx))))
 
