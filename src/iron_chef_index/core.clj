@@ -690,6 +690,61 @@
     (println (get-all-episodes conx))
     ))
 
+;; === 1998 Special Episodes ===
+
+(defn write-episode-239! [conx]
+  ;; Episode 239: 2,000th Plate Special (August 28 - September 4, 1998)
+  ;; Team battle: "All French" vs "All China"
+  ;; Team All French: Hiroyuki Sakai, Yutaka Ishinabe, Etsuo Jō
+  ;; Team All China: Chen Kenichi, Shōzō Miyamoto, Yūji Wakiya
+  ;; Theme: Spare rib, snapping turtle, and banana
+  ;; Winner: "All French" team
+
+  ;; Create chefs not already in database
+  (when-not (get-chef-by-name conx "Etsuo Jō")
+    (create-chef! conx "Etsuo Jō" "French" "Japan"))
+  (when-not (get-chef-by-name conx "Shōzō Miyamoto")
+    (create-chef! conx "Shōzō Miyamoto" "Chinese" "Japan"))
+  (when-not (get-chef-by-name conx "Yūji Wakiya")
+    (create-chef! conx "Yūji Wakiya" "Chinese" "Japan"))
+
+  ;; Create episode (using first air date)
+  (create-episode! conx 239 "August 28, 1998")
+
+  ;; Create battle - this is a team vs team battle with no traditional Iron Chef
+  ;; Both teams are in "challenger" positions
+  (let [battle-id (create-battle! conx 239 1 "Spare rib, snapping turtle, and banana")
+        ;; Team All French
+        sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
+        ishinabe-id (:chefs/id (get-chef-by-name conx "Yutaka Ishinabe"))
+        jo-id (:chefs/id (get-chef-by-name conx "Etsuo Jō"))
+        ;; Team All China
+        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
+        miyamoto-id (:chefs/id (get-chef-by-name conx "Shōzō Miyamoto"))
+        wakiya-id (:chefs/id (get-chef-by-name conx "Yūji Wakiya"))]
+    ;; Add all chefs as challengers (team battle format)
+    (doseq [chef-id [sakai-id ishinabe-id jo-id chen-id miyamoto-id wakiya-id]]
+      (add-challenger-to-battle! conx chef-id battle-id))
+    ;; Winners: Team All French (Sakai, Ishinabe, Jō)
+    (doseq [chef-id [sakai-id ishinabe-id jo-id]]
+      (add-winner-to-battle! conx chef-id battle-id))))
+
+(defn process-1998-table! [conx html-table]
+  ;; Table 9: Episodes 209-256 (1998)
+  ;; Episode 214 has rowspan=2 (two-part episode, rows 5-6)
+  ;; Episode 239 has rowspan=2 (team battle, rows 31-32) - needs special handling
+  ;; Total: 48 episodes but 50 HTML rows due to rowspans
+  (let [row-maps (table-to-maps html-table)]
+    ;; Process rows 0-30 (episodes 209-238)
+    ;; Row 6 is partial (second air date for ep 214) but process-row-map handles it
+    (doseq [row (take 31 row-maps)]
+      (process-row-map! conx row))
+    ;; Episode 239 - special team battle (rows 31-32 are malformed)
+    (write-episode-239! conx)
+    ;; Process rows 33+ (episodes 240-256, skipping the malformed rows 31-32)
+    (doseq [row (drop 33 row-maps)]
+      (process-row-map! conx row))))
+
 ;; === 2000-2002 Special Episodes (Table 11) ===
 ;; These are special events without numeric episode IDs
 ;; We assign IDs 292-295 continuing the sequence after episode 291
@@ -824,7 +879,7 @@
     ;; 1997 episodes (table 8)
     (process-1997-table! conx (nth html-tables 8))
     ;; 1998 episodes (table 9)
-    (process-table! conx (nth html-tables 9))
+    (process-1998-table! conx (nth html-tables 9))
     ;; 1999 episodes (table 10)
     (process-table! conx (nth html-tables 10))
     ;; 2000-2002 special episodes (table 11)

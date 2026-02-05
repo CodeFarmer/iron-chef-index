@@ -772,6 +772,60 @@
           (is (= #{"Kimio Nonaga"} winner-names)
               "Battle 3 winner should be Nonaga"))))))
 
+(deftest episode-239-participants-test
+  "Verify Episode 239 (2,000th Plate Special) has correct team battle participants per Wikipedia:
+   Team 'All French': Hiroyuki Sakai, Yutaka Ishinabe, Etsuo Jō
+   Team 'All China': Chen Kenichi, Shōzō Miyamoto, Yūji Wakiya
+   Theme: Spare rib, snapping turtle, and banana
+   Winner: Team 'All French'"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Episode 239 exists with correct air date"
+      (let [episode (get-episode-by-id conx 239)]
+        (is (some? episode) "Episode 239 should exist")
+        (is (= "August 28, 1998" (:episodes/air_date episode))
+            "Episode 239 should air on August 28, 1998")))
+
+    (testing "Episode 239 team battle chefs exist"
+      (let [all-chefs (get-all-chefs conx)
+            chef-names (set (map :chefs/name all-chefs))]
+        ;; Team All French
+        (is (contains? chef-names "Hiroyuki Sakai") "Sakai should exist")
+        (is (contains? chef-names "Yutaka Ishinabe") "Ishinabe should exist")
+        (is (contains? chef-names "Etsuo Jō") "Etsuo Jō should exist")
+        ;; Team All China
+        (is (contains? chef-names "Chen Kenichi") "Chen should exist")
+        (is (contains? chef-names "Shōzō Miyamoto") "Shōzō Miyamoto should exist")
+        (is (contains? chef-names "Yūji Wakiya") "Yūji Wakiya should exist")))
+
+    (let [battles (get-battles-for-episode conx 239)
+          battle (first battles)]
+
+      (testing "Episode 239 has one battle"
+        (is (= 1 (count battles)) "Episode 239 should have 1 battle"))
+
+      (testing "Episode 239 battle theme"
+        (is (= "Spare rib, snapping turtle, and banana" (:battles/theme_ingredient battle))
+            "Theme should be 'Spare rib, snapping turtle, and banana'"))
+
+      (testing "Episode 239 battle participants (team vs team, all challengers)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle))
+              challengers (get-challengers-for-battle conx (:battles/id battle))
+              challenger-names (set (map :chefs/name challengers))]
+          (is (empty? iron-chefs)
+              "Should have no Iron Chefs (team vs team battle)")
+          (is (= #{"Hiroyuki Sakai" "Yutaka Ishinabe" "Etsuo Jō"
+                   "Chen Kenichi" "Shōzō Miyamoto" "Yūji Wakiya"}
+                 challenger-names)
+              "All 6 chefs should be challengers")))
+
+      (testing "Episode 239 winners (Team All French)"
+        (let [winners (get-winners-for-battle conx (:battles/id battle))
+              winner-names (set (map :chefs/name winners))]
+          (is (= #{"Hiroyuki Sakai" "Yutaka Ishinabe" "Etsuo Jō"} winner-names)
+              "Winners should be Team All French (Sakai, Ishinabe, Jō)"))))))
+
 (deftest special-episodes-2000-2002-test
   "Verify special episodes from 2000-2002 are parsed and included"
   (jdbc/with-transaction [conx ds {:rollback-only true}]
