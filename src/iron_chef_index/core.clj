@@ -887,6 +887,6 @@
   (comment
     (println (get-all-episodes conx))))
 
-(defn main [argv]
+(defn -main [& args]
   (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]
     (execute! conx)))

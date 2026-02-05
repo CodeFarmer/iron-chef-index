@@ -9,4 +9,5 @@
                  [com.github.seancorfield/next.jdbc "1.3.865"]
                  [org.clj-commons/hickory "0.7.3"]
                  ]
+  :main iron-chef-index.core
   :repl-options {:init-ns iron-chef-index.core})
