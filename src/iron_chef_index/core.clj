@@ -354,40 +354,40 @@
     (add-winner-to-battle! conx chen-id battle2-id)))
 
 (defn write-episode-99! [conx]
-  ;; Episode 99: World Cup Special (October 6, 1995)
-  ;; Battle 1: Michiba vs Pierre Gagnaire (Tuna) - Michiba wins
-  ;; Battle 2: Michiba vs Gianfranco Vissani (Squid) - Tie (both win)
-  ;; Battle 3: Chen vs Hsu Cheng (Duck) - Chen wins
+  ;; Episode 99: 1995 Iron Chef World Cup at Ariake Coliseum (October 6, 1995)
+  ;; Single-elimination tournament: French, Italian, Japanese, Chinese cuisines
+  ;; Battle 1: Gagnaire vs Vissani (Tuna) - Vissani wins (semifinal, challenger vs challenger)
+  ;; Battle 2: Michiba vs Hsu Cheng (Squid) - Michiba wins (semifinal)
+  ;; Battle 3: Michiba vs Vissani (Duck) - Michiba wins (final)
   (create-chef! conx "Pierre Gagnaire" "French" "France")
   (create-chef! conx "Gianfranco Vissani" "Italian" "Italy")
   (create-chef! conx "Hsu Cheng" "Chinese (Cantonese)" "Hong Kong")
 
   (create-episode! conx 99 "October 6, 1995")
 
-  ;; Battle 1: Michiba vs Gagnaire (Tuna)
+  ;; Battle 1: Gagnaire vs Vissani (Tuna) - Vissani wins (semifinal, no Iron Chef)
   (let [battle1-id (create-battle! conx 99 1 "Tuna")
-        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
-        gagnaire-id (:chefs/id (get-chef-by-name conx "Pierre Gagnaire"))]
-    (add-iron-chef-to-battle! conx michiba-id battle1-id)
+        gagnaire-id (:chefs/id (get-chef-by-name conx "Pierre Gagnaire"))
+        vissani-id (:chefs/id (get-chef-by-name conx "Gianfranco Vissani"))]
     (add-challenger-to-battle! conx gagnaire-id battle1-id)
-    (add-winner-to-battle! conx michiba-id battle1-id))
+    (add-challenger-to-battle! conx vissani-id battle1-id)
+    (add-winner-to-battle! conx vissani-id battle1-id))
 
-  ;; Battle 2: Michiba vs Vissani (Squid) - Tie
+  ;; Battle 2: Michiba vs Hsu Cheng (Squid) - Michiba wins (semifinal)
   (let [battle2-id (create-battle! conx 99 2 "Squid")
         michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
-        vissani-id (:chefs/id (get-chef-by-name conx "Gianfranco Vissani"))]
-    (add-iron-chef-to-battle! conx michiba-id battle2-id)
-    (add-challenger-to-battle! conx vissani-id battle2-id)
-    (add-winner-to-battle! conx michiba-id battle2-id)
-    (add-winner-to-battle! conx vissani-id battle2-id))
-
-  ;; Battle 3: Chen vs Hsu Cheng (Duck)
-  (let [battle3-id (create-battle! conx 99 3 "Duck")
-        chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
         hsu-id (:chefs/id (get-chef-by-name conx "Hsu Cheng"))]
-    (add-iron-chef-to-battle! conx chen-id battle3-id)
-    (add-challenger-to-battle! conx hsu-id battle3-id)
-    (add-winner-to-battle! conx chen-id battle3-id)))
+    (add-iron-chef-to-battle! conx michiba-id battle2-id)
+    (add-challenger-to-battle! conx hsu-id battle2-id)
+    (add-winner-to-battle! conx michiba-id battle2-id))
+
+  ;; Battle 3: Michiba vs Vissani (Duck) - Michiba wins (final)
+  (let [battle3-id (create-battle! conx 99 3 "Duck")
+        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
+        vissani-id (:chefs/id (get-chef-by-name conx "Gianfranco Vissani"))]
+    (add-iron-chef-to-battle! conx michiba-id battle3-id)
+    (add-challenger-to-battle! conx vissani-id battle3-id)
+    (add-winner-to-battle! conx michiba-id battle3-id)))
 
 (defn write-episode-101-102! [conx]
   (create-chef! conx "Lin Kunbi" "Chinese (Fujian)" "China")

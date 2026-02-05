@@ -391,6 +391,83 @@
 (defn get-battles-for-episode [conx episode-id]
   (jdbc/execute! conx ["select * from battles where episode_id = ? order by battle_number" episode-id]))
 
+;; Helper to get iron chefs for a battle
+(defn get-iron-chefs-for-battle [conx battle-id]
+  (jdbc/execute! conx ["select c.* from chefs c
+                        join iron_chefs_battles icb on c.id = icb.iron_chef_id
+                        where icb.battle_id = ?" battle-id]))
+
+;; Helper to get challengers for a battle
+(defn get-challengers-for-battle [conx battle-id]
+  (jdbc/execute! conx ["select c.* from chefs c
+                        join challengers_battles cb on c.id = cb.challenger_id
+                        where cb.battle_id = ?" battle-id]))
+
+;; Helper to get winners for a battle
+(defn get-winners-for-battle [conx battle-id]
+  (jdbc/execute! conx ["select c.* from chefs c
+                        join winners_battles wb on c.id = wb.winner_id
+                        where wb.battle_id = ?" battle-id]))
+
+(deftest episode-99-participants-test
+  "Verify Episode 99 (1995 World Cup Special) has correct participants per Wikipedia:
+   Battle 1: Gagnaire vs Vissani (Tuna) - Vissani wins (challenger vs challenger semifinal)
+   Battle 2: Michiba vs Hsu Cheng (Squid) - Michiba wins (semifinal)
+   Battle 3: Michiba vs Vissani (Duck) - Michiba wins (final)"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [battles (get-battles-for-episode conx 99)
+          battle1 (first battles)
+          battle2 (second battles)
+          battle3 (nth battles 2)]
+
+      (testing "Episode 99 Battle 1: Gagnaire vs Vissani (Tuna)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Tuna" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be Tuna")
+          (is (empty? iron-chefs)
+              "Battle 1 should have no Iron Chef (challenger vs challenger)")
+          (is (= #{"Pierre Gagnaire" "Gianfranco Vissani"} challenger-names)
+              "Battle 1 challengers should be Gagnaire and Vissani")
+          (is (= #{"Gianfranco Vissani"} winner-names)
+              "Battle 1 winner should be Vissani")))
+
+      (testing "Episode 99 Battle 2: Michiba vs Hsu Cheng (Squid)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Squid" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Squid")
+          (is (= #{"Rokusaburo Michiba"} iron-chef-names)
+              "Battle 2 Iron Chef should be Michiba")
+          (is (= #{"Hsu Cheng"} challenger-names)
+              "Battle 2 challenger should be Hsu Cheng")
+          (is (= #{"Rokusaburo Michiba"} winner-names)
+              "Battle 2 winner should be Michiba")))
+
+      (testing "Episode 99 Battle 3: Michiba vs Vissani (Duck)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle3))
+              challengers (get-challengers-for-battle conx (:battles/id battle3))
+              winners (get-winners-for-battle conx (:battles/id battle3))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Duck" (:battles/theme_ingredient battle3))
+              "Battle 3 theme should be Duck")
+          (is (= #{"Rokusaburo Michiba"} iron-chef-names)
+              "Battle 3 Iron Chef should be Michiba")
+          (is (= #{"Gianfranco Vissani"} challenger-names)
+              "Battle 3 challenger should be Vissani")
+          (is (= #{"Rokusaburo Michiba"} winner-names)
+              "Battle 3 winner should be Michiba"))))))
+
 (deftest special-episodes-2000-2002-test
   "Verify special episodes from 2000-2002 are parsed and included"
   (jdbc/with-transaction [conx ds {:rollback-only true}]
