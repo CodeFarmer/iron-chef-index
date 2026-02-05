@@ -312,7 +312,7 @@
 
     (testing "Episode 198 (1997 3-battle special)"
       (let [ep198 (get-episode-by-id conx 198)]
-        (is (= "September 12, 1997" (:episodes/air_date ep198)))))))
+        (is (= "October 10, 1997" (:episodes/air_date ep198)))))))
 
 (deftest episode-battles-test
   "Verify episodes have battles created"
@@ -351,7 +351,7 @@
       (let [battles (jdbc/execute! conx ["select * from battles where episode_id = 73 order by battle_number"])]
         (is (= 2 (count battles))
             "Episode 73 should have 2 battles")
-        (is (= ["Pork" "Spiny Lobster"]
+        (is (= ["Pork" "Spiny lobster"]
                (map :battles/theme_ingredient battles))
             "Episode 73 battles should have correct theme ingredients")))
 
@@ -467,6 +467,310 @@
               "Battle 3 challenger should be Vissani")
           (is (= #{"Rokusaburo Michiba"} winner-names)
               "Battle 3 winner should be Michiba"))))))
+
+(deftest episode-61-participants-test
+  "Verify Episode 61 (1995 New Year Special - Mr. Iron Chef) has correct participants per Wikipedia:
+   Battle 1: Kandagawa vs Shimizu (Abalone) - Kandagawa wins (challenger vs challenger, preliminaries)
+   Battle 2: Michiba vs Kandagawa (Yellowtail) - Michiba wins (finals)"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [battles (get-battles-for-episode conx 61)
+          battle1 (first battles)
+          battle2 (second battles)]
+
+      (testing "Episode 61 Battle 1: Kandagawa vs Shimizu (Abalone)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Abalone" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be Abalone")
+          (is (empty? iron-chefs)
+              "Battle 1 should have no Iron Chef (challenger vs challenger)")
+          (is (= #{"Toshirō Kandagawa" "Tadaaki Shimizu"} challenger-names)
+              "Battle 1 challengers should be Kandagawa and Shimizu")
+          (is (= #{"Toshirō Kandagawa"} winner-names)
+              "Battle 1 winner should be Kandagawa")))
+
+      (testing "Episode 61 Battle 2: Michiba vs Kandagawa (Yellowtail)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Yellowtail" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Yellowtail")
+          (is (= #{"Rokusaburo Michiba"} iron-chef-names)
+              "Battle 2 Iron Chef should be Michiba")
+          (is (= #{"Toshirō Kandagawa"} challenger-names)
+              "Battle 2 challenger should be Kandagawa")
+          (is (= #{"Rokusaburo Michiba"} winner-names)
+              "Battle 2 winner should be Michiba"))))))
+
+(deftest episode-73-participants-test
+  "Verify Episode 73 (Hong Kong Special) has correct participants per Wikipedia:
+   Battle 1: Chen vs Leung Waikei (Pork) - Chen wins
+   Battle 2: Michiba vs Chow Chung (Spiny lobster) - Michiba wins"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [battles (get-battles-for-episode conx 73)
+          battle1 (first battles)
+          battle2 (second battles)]
+
+      (testing "Episode 73 Battle 1: Chen vs Leung Waikei (Pork)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Pork" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be Pork")
+          (is (= #{"Chen Kenichi"} iron-chef-names)
+              "Battle 1 Iron Chef should be Chen")
+          (is (= #{"Leung Waikei"} challenger-names)
+              "Battle 1 challenger should be Leung Waikei")
+          (is (= #{"Chen Kenichi"} winner-names)
+              "Battle 1 winner should be Chen")))
+
+      (testing "Episode 73 Battle 2: Michiba vs Chow Chung (Spiny lobster)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Spiny lobster" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Spiny lobster")
+          (is (= #{"Rokusaburo Michiba"} iron-chef-names)
+              "Battle 2 Iron Chef should be Michiba")
+          (is (= #{"Chow Chung"} challenger-names)
+              "Battle 2 challenger should be Chow Chung")
+          (is (= #{"Rokusaburo Michiba"} winner-names)
+              "Battle 2 winner should be Michiba"))))))
+
+(deftest episode-124-participants-test
+  "Verify Episode 124 (France Special at Château de Brissac) has correct participants per Wikipedia:
+   Battle 1: Nakamura vs Bernard Leprince (Salmon) - Leprince wins
+   Battle 2: Sakai vs Pierre Gagnaire (Lobster) - Gagnaire wins"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [battles (get-battles-for-episode conx 124)
+          battle1 (first battles)
+          battle2 (second battles)]
+
+      (testing "Episode 124 Battle 1: Nakamura vs Leprince (Salmon)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Salmon" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be Salmon")
+          (is (= #{"Komei Nakamura"} iron-chef-names)
+              "Battle 1 Iron Chef should be Nakamura")
+          (is (= #{"Bernard Leprince"} challenger-names)
+              "Battle 1 challenger should be Leprince")
+          (is (= #{"Bernard Leprince"} winner-names)
+              "Battle 1 winner should be Leprince")))
+
+      (testing "Episode 124 Battle 2: Sakai vs Gagnaire (Lobster)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Lobster" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Lobster")
+          (is (= #{"Hiroyuki Sakai"} iron-chef-names)
+              "Battle 2 Iron Chef should be Sakai")
+          (is (= #{"Pierre Gagnaire"} challenger-names)
+              "Battle 2 challenger should be Gagnaire")
+          (is (= #{"Pierre Gagnaire"} winner-names)
+              "Battle 2 winner should be Gagnaire"))))))
+
+(deftest episode-149-participants-test
+  "Verify Episode 149 (China vs Japan Special) has correct participants per Wikipedia:
+   Battle 1: Chen vs Sun Liping, Su Dexing, Zhuang Weijia (Chicken) - Chen AND Sun Liping win (tie)
+   Battle 2: Chen vs Sun Liping (Shark fin) - Chen wins (tiebreaker)"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+    (let [battles (get-battles-for-episode conx 149)
+          battle1 (first battles)
+          battle2 (second battles)]
+
+      (testing "Episode 149 Battle 1: Chen vs Team China (Chicken) - Tie"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Chicken" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be Chicken")
+          (is (= #{"Chen Kenichi"} iron-chef-names)
+              "Battle 1 Iron Chef should be Chen")
+          (is (= #{"Sun Liping" "Su Dexing" "Zhuang Weijia"} challenger-names)
+              "Battle 1 challengers should be Sun Liping, Su Dexing, and Zhuang Weijia")
+          (is (= #{"Chen Kenichi" "Sun Liping"} winner-names)
+              "Battle 1 winners should be Chen and Sun Liping (tie)")))
+
+      (testing "Episode 149 Battle 2: Chen vs Sun Liping (Shark fin) - Chen wins"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Shark fin" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Shark fin")
+          (is (= #{"Chen Kenichi"} iron-chef-names)
+              "Battle 2 Iron Chef should be Chen")
+          (is (= #{"Sun Liping"} challenger-names)
+              "Battle 2 challenger should be Sun Liping")
+          (is (= #{"Chen Kenichi"} winner-names)
+              "Battle 2 winner should be Chen only (not a tie)"))))))
+
+(deftest episode-198-participants-test
+  "Verify Episode 198 (1997 Iron Chef World Cup) has correct participants per Wikipedia:
+   Air date: October 10, 1997
+   Battle 1: Nakamura vs Liu Xikun (Beef) - Nakamura wins
+   Battle 2: Passard vs Patrick Clark (Lobster) - Passard wins (challenger vs challenger)
+   Battle 3: Nakamura vs Passard (Foie gras) - Draw (no winner)"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Episode 198 air date"
+      (let [episode (get-episode-by-id conx 198)]
+        (is (= "October 10, 1997" (:episodes/air_date episode))
+            "Episode 198 should air on October 10, 1997")))
+
+    (testing "Patrick Clark chef exists with correct name"
+      (let [chef (get-chef-by-name conx "Patrick Clark")]
+        (is (some? chef)
+            "Patrick Clark should exist (not Don Clark)")))
+
+    (let [battles (get-battles-for-episode conx 198)
+          battle1 (first battles)
+          battle2 (second battles)
+          battle3 (nth battles 2)]
+
+      (testing "Episode 198 Battle 1: Nakamura vs Liu Xikun (Beef)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Beef" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be Beef")
+          (is (= #{"Komei Nakamura"} iron-chef-names)
+              "Battle 1 Iron Chef should be Nakamura")
+          (is (= #{"Liu Xikun"} challenger-names)
+              "Battle 1 challenger should be Liu Xikun")
+          (is (= #{"Komei Nakamura"} winner-names)
+              "Battle 1 winner should be Nakamura")))
+
+      (testing "Episode 198 Battle 2: Passard vs Patrick Clark (Lobster)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Lobster" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Lobster")
+          (is (empty? iron-chefs)
+              "Battle 2 should have no Iron Chef (challenger vs challenger)")
+          (is (= #{"Alain Passard" "Patrick Clark"} challenger-names)
+              "Battle 2 challengers should be Passard and Patrick Clark")
+          (is (= #{"Alain Passard"} winner-names)
+              "Battle 2 winner should be Passard")))
+
+      (testing "Episode 198 Battle 3: Nakamura vs Passard (Foie gras) - Draw"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle3))
+              challengers (get-challengers-for-battle conx (:battles/id battle3))
+              winners (get-winners-for-battle conx (:battles/id battle3))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))]
+          (is (= "Foie gras" (:battles/theme_ingredient battle3))
+              "Battle 3 theme should be Foie gras")
+          (is (= #{"Komei Nakamura"} iron-chef-names)
+              "Battle 3 Iron Chef should be Nakamura")
+          (is (= #{"Alain Passard"} challenger-names)
+              "Battle 3 challenger should be Passard")
+          (is (empty? winners)
+              "Battle 3 should have no winner (draw)"))))))
+
+(deftest episode-295-participants-test
+  "Verify Episode 295 (Japan Cup 2002) has correct participants per Wikipedia:
+   Battle 1: Chen vs Yūichirō Ebisu (King crab) - Chen wins
+   Battle 2: Nonaga vs Tanabe (Pacific bluefin tuna) - Nonaga wins (challenger vs challenger)
+   Battle 3: Chen vs Nonaga (Ingii chicken) - Nonaga wins"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    (testing "Takeshi Tanabe chef has correct specialty"
+      (let [chef (get-chef-by-name conx "Takeshi Tanabe")]
+        (is (some? chef)
+            "Takeshi Tanabe should exist")
+        (is (= "French" (:chefs/cuisine chef))
+            "Takeshi Tanabe's cuisine should be French")))
+
+    (let [battles (get-battles-for-episode conx 295)
+          battle1 (first battles)
+          battle2 (second battles)
+          battle3 (nth battles 2)]
+
+      (testing "Episode 295 Battle 1: Chen vs Ebisu (King crab)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle1))
+              challengers (get-challengers-for-battle conx (:battles/id battle1))
+              winners (get-winners-for-battle conx (:battles/id battle1))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "King crab" (:battles/theme_ingredient battle1))
+              "Battle 1 theme should be King crab")
+          (is (= #{"Chen Kenichi"} iron-chef-names)
+              "Battle 1 Iron Chef should be Chen")
+          (is (= #{"Yūichirō Ebisu"} challenger-names)
+              "Battle 1 challenger should be Ebisu")
+          (is (= #{"Chen Kenichi"} winner-names)
+              "Battle 1 winner should be Chen")))
+
+      (testing "Episode 295 Battle 2: Nonaga vs Tanabe (Pacific bluefin tuna)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle2))
+              challengers (get-challengers-for-battle conx (:battles/id battle2))
+              winners (get-winners-for-battle conx (:battles/id battle2))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Pacific bluefin tuna" (:battles/theme_ingredient battle2))
+              "Battle 2 theme should be Pacific bluefin tuna")
+          (is (empty? iron-chefs)
+              "Battle 2 should have no Iron Chef (challenger vs challenger)")
+          (is (= #{"Kimio Nonaga" "Takeshi Tanabe"} challenger-names)
+              "Battle 2 challengers should be Nonaga and Tanabe")
+          (is (= #{"Kimio Nonaga"} winner-names)
+              "Battle 2 winner should be Nonaga")))
+
+      (testing "Episode 295 Battle 3: Chen vs Nonaga (Ingii chicken)"
+        (let [iron-chefs (get-iron-chefs-for-battle conx (:battles/id battle3))
+              challengers (get-challengers-for-battle conx (:battles/id battle3))
+              winners (get-winners-for-battle conx (:battles/id battle3))
+              iron-chef-names (set (map :chefs/name iron-chefs))
+              challenger-names (set (map :chefs/name challengers))
+              winner-names (set (map :chefs/name winners))]
+          (is (= "Ingii chicken" (:battles/theme_ingredient battle3))
+              "Battle 3 theme should be Ingii chicken")
+          (is (= #{"Chen Kenichi"} iron-chef-names)
+              "Battle 3 Iron Chef should be Chen")
+          (is (= #{"Kimio Nonaga"} challenger-names)
+              "Battle 3 challenger should be Nonaga")
+          (is (= #{"Kimio Nonaga"} winner-names)
+              "Battle 3 winner should be Nonaga"))))))
 
 (deftest special-episodes-2000-2002-test
   "Verify special episodes from 2000-2002 are parsed and included"

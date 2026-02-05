@@ -305,53 +305,53 @@
 ;; intended and not actually being necessary for any reason
 
 (defn write-episode-61! [conx]
-  ;; Episode 61: 1995 New Year Special (January 2, 1995)
-  ;; Battle 1: Michiba vs Kandagawa (Abalone) - Michiba wins
-  ;; Battle 2: Michiba vs Shimizu (Yellowtail) - Michiba wins
+  ;; Episode 61: 1995 New Year Special - 1994 Mr. Iron Chef (January 2, 1995)
+  ;; Battle 1: Kandagawa vs Shimizu (Abalone) - Kandagawa wins (preliminaries final, challenger vs challenger)
+  ;; Battle 2: Michiba vs Kandagawa (Yellowtail) - Michiba wins (finals)
 
   (create-episode! conx 61 "January 2, 1995")
 
-  ;; Battle 1: Michiba vs Kandagawa (Abalone)
+  ;; Battle 1: Kandagawa vs Shimizu (Abalone) - preliminaries final, no Iron Chef
   (let [battle1-id (create-battle! conx 61 1 "Abalone")
-        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
-        kandagawa-id (:chefs/id (get-chef-by-name conx "Toshirō Kandagawa"))]
-    (add-iron-chef-to-battle! conx michiba-id battle1-id)
+        kandagawa-id (:chefs/id (get-chef-by-name conx "Toshirō Kandagawa"))
+        shimizu-id (get-or-create-chef-id! conx "Tadaaki Shimizu" "Japanese" "Japan")]
     (add-challenger-to-battle! conx kandagawa-id battle1-id)
-    (add-winner-to-battle! conx michiba-id battle1-id))
+    (add-challenger-to-battle! conx shimizu-id battle1-id)
+    (add-winner-to-battle! conx kandagawa-id battle1-id))
 
-  ;; Battle 2: Michiba vs Shimizu (Yellowtail)
+  ;; Battle 2: Michiba vs Kandagawa (Yellowtail) - finals
   (let [battle2-id (create-battle! conx 61 2 "Yellowtail")
         michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
-        shimizu-id (get-or-create-chef-id! conx "Tadaaki Shimizu" "Japanese" "Japan")]
+        kandagawa-id (:chefs/id (get-chef-by-name conx "Toshirō Kandagawa"))]
     (add-iron-chef-to-battle! conx michiba-id battle2-id)
-    (add-challenger-to-battle! conx shimizu-id battle2-id)
+    (add-challenger-to-battle! conx kandagawa-id battle2-id)
     (add-winner-to-battle! conx michiba-id battle2-id)))
 
 (defn write-episode-73!
   ;; Episode 73: Hong Kong Special (March 31, 1995)
-  ;; Battle 1: Michiba vs Leung Waikei (Pork) - Michiba wins
-  ;; Battle 2: Chen Kenichi vs Chow Chung (Spiny Lobster) - Chen wins
+  ;; Battle 1: Chen vs Leung Waikei (Pork) - Chen wins
+  ;; Battle 2: Michiba vs Chow Chung (Spiny lobster) - Michiba wins
   [conx]
   (create-chef! conx "Leung Waikei" "Chinese (Cantonese)" "Hong Kong")
   (create-chef! conx "Chow Chung"   "Chinese (Cantonese)" "Hong Kong")
 
   (create-episode! conx 73 "March 31, 1995")
 
-  ;; Battle 1: Michiba vs Leung Waikei (Pork)
+  ;; Battle 1: Chen vs Leung Waikei (Pork)
   (let [battle1-id (create-battle! conx 73 1 "Pork")
-        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
-        leung-id (:chefs/id (get-chef-by-name conx "Leung Waikei"))]
-    (add-iron-chef-to-battle! conx michiba-id battle1-id)
-    (add-challenger-to-battle! conx leung-id battle1-id)
-    (add-winner-to-battle! conx michiba-id battle1-id))
-
-  ;; Battle 2: Chen vs Chow Chung (Spiny Lobster)
-  (let [battle2-id (create-battle! conx 73 2 "Spiny Lobster")
         chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
+        leung-id (:chefs/id (get-chef-by-name conx "Leung Waikei"))]
+    (add-iron-chef-to-battle! conx chen-id battle1-id)
+    (add-challenger-to-battle! conx leung-id battle1-id)
+    (add-winner-to-battle! conx chen-id battle1-id))
+
+  ;; Battle 2: Michiba vs Chow Chung (Spiny lobster)
+  (let [battle2-id (create-battle! conx 73 2 "Spiny lobster")
+        michiba-id (:chefs/id (get-chef-by-name conx "Rokusaburo Michiba"))
         chow-id (:chefs/id (get-chef-by-name conx "Chow Chung"))]
-    (add-iron-chef-to-battle! conx chen-id battle2-id)
+    (add-iron-chef-to-battle! conx michiba-id battle2-id)
     (add-challenger-to-battle! conx chow-id battle2-id)
-    (add-winner-to-battle! conx chen-id battle2-id)))
+    (add-winner-to-battle! conx michiba-id battle2-id)))
 
 (defn write-episode-99! [conx]
   ;; Episode 99: 1995 Iron Chef World Cup at Ariake Coliseum (October 6, 1995)
@@ -435,28 +435,28 @@
   )
 
 (defn write-episode-124! [conx]
-  ;; Episode 124: France vs Japan Special (April 12, 1996)
-  ;; Battle 1: Sakai vs Pierre Gagnaire (Salmon) - Gagnaire wins
-  ;; Battle 2: Nakamura vs Bernard Leprince (Lobster) - Leprince wins
+  ;; Episode 124: France Special at Château de Brissac (April 12, 1996)
+  ;; Battle 1: Nakamura vs Bernard Leprince (Salmon) - Leprince wins
+  ;; Battle 2: Sakai vs Pierre Gagnaire (Lobster) - Gagnaire wins
   (create-chef! conx "Bernard Leprince" "French" "France")
 
   (create-episode! conx 124 "April 12, 1996")
 
-  ;; Battle 1: Sakai vs Gagnaire (Salmon)
+  ;; Battle 1: Nakamura vs Leprince (Salmon)
   (let [battle1-id (create-battle! conx 124 1 "Salmon")
-        sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
-        gagnaire-id (:chefs/id (get-chef-by-name conx "Pierre Gagnaire"))]
-    (add-iron-chef-to-battle! conx sakai-id battle1-id)
-    (add-challenger-to-battle! conx gagnaire-id battle1-id)
-    (add-winner-to-battle! conx gagnaire-id battle1-id))
-
-  ;; Battle 2: Nakamura vs Leprince (Lobster)
-  (let [battle2-id (create-battle! conx 124 2 "Lobster")
         nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))
         leprince-id (:chefs/id (get-chef-by-name conx "Bernard Leprince"))]
-    (add-iron-chef-to-battle! conx nakamura-id battle2-id)
-    (add-challenger-to-battle! conx leprince-id battle2-id)
-    (add-winner-to-battle! conx leprince-id battle2-id)))
+    (add-iron-chef-to-battle! conx nakamura-id battle1-id)
+    (add-challenger-to-battle! conx leprince-id battle1-id)
+    (add-winner-to-battle! conx leprince-id battle1-id))
+
+  ;; Battle 2: Sakai vs Gagnaire (Lobster)
+  (let [battle2-id (create-battle! conx 124 2 "Lobster")
+        sakai-id (:chefs/id (get-chef-by-name conx "Hiroyuki Sakai"))
+        gagnaire-id (:chefs/id (get-chef-by-name conx "Pierre Gagnaire"))]
+    (add-iron-chef-to-battle! conx sakai-id battle2-id)
+    (add-challenger-to-battle! conx gagnaire-id battle2-id)
+    (add-winner-to-battle! conx gagnaire-id battle2-id)))
 
 (defn write-episode-149! [conx]
   ;; Episode 149: China vs Japan Special (October 11, 1996)
@@ -482,15 +482,13 @@
     (add-winner-to-battle! conx chen-id battle1-id)
     (add-winner-to-battle! conx (:chefs/id (get-chef-by-name conx "Sun Liping")) battle1-id))
 
-  ;; Battle 2: Chen vs Sun Liping (Shark fin) - Tie-breaker
+  ;; Battle 2: Chen vs Sun Liping (Shark fin) - Tiebreaker, Chen wins
   (let [battle2-id (create-battle! conx 149 2 "Shark fin")
         chen-id (:chefs/id (get-chef-by-name conx "Chen Kenichi"))
         sun-id (:chefs/id (get-chef-by-name conx "Sun Liping"))]
     (add-iron-chef-to-battle! conx chen-id battle2-id)
     (add-challenger-to-battle! conx sun-id battle2-id)
-    ;; Both win the tie-breaker as well
-    (add-winner-to-battle! conx chen-id battle2-id)
-    (add-winner-to-battle! conx sun-id battle2-id)))
+    (add-winner-to-battle! conx chen-id battle2-id)))
 
 (defn write-episode-160! [conx]
   ;; Episode 160 is a special New Year's Eve (Omisoka) episode
@@ -605,21 +603,20 @@
     (add-challenger-to-episode! conx kojima-id 194)))
 
 (defn write-episode-198! [conx]
-  ;; Episode 198: Special 3-battle episode (September 12, 1997)
-  ;; Battle 1: Nakamura vs Liu Xikun (Beef) - main battle
-  ;; Battle 2: Passard vs Clark (Lobster) - exhibition
-  ;; Battle 3: Nakamura vs Passard (Foie gras) - exhibition
-  ;; Wikipedia table has rowspan=3 causing malformed data in rows 38-39
+  ;; Episode 198: 1997 Iron Chef World Cup (October 10, 1997)
+  ;; Battle 1: Nakamura vs Liu Xikun (Beef) - Nakamura wins
+  ;; Battle 2: Passard vs Patrick Clark (Lobster) - Passard wins (challenger vs challenger)
+  ;; Battle 3: Nakamura vs Passard (Foie gras) - Draw (no winner)
 
   (when-not (get-chef-by-name conx "Liu Xikun")
-    (create-chef! conx "Liu Xikun" "Chinese" "China"))
+    (create-chef! conx "Liu Xikun" "Chinese (Cantonese)" "China"))
   (when-not (get-chef-by-name conx "Alain Passard")
     (create-chef! conx "Alain Passard" "French" "France"))
-  (when-not (get-chef-by-name conx "Don Clark")
-    (create-chef! conx "Don Clark" "American" "United States"))
+  (when-not (get-chef-by-name conx "Patrick Clark")
+    (create-chef! conx "Patrick Clark" "New American" "United States"))
 
   ;; Create episode
-  (create-episode! conx 198 "September 12, 1997")
+  (create-episode! conx 198 "October 10, 1997")
 
   ;; Battle 1: Nakamura vs Liu Xikun (Beef)
   (let [battle1-id (create-battle! conx 198 1 "Beef")
@@ -629,21 +626,22 @@
     (add-challenger-to-battle! conx liu-id battle1-id)
     (add-winner-to-battle! conx nakamura-id battle1-id))
 
-  ;; Battle 2: Passard vs Clark (Lobster) - exhibition
+  ;; Battle 2: Passard vs Patrick Clark (Lobster) - challenger vs challenger
   (let [battle2-id (create-battle! conx 198 2 "Lobster")
         passard-id (:chefs/id (get-chef-by-name conx "Alain Passard"))
-        clark-id (:chefs/id (get-chef-by-name conx "Don Clark"))]
+        clark-id (:chefs/id (get-chef-by-name conx "Patrick Clark"))]
     (add-challenger-to-battle! conx passard-id battle2-id)
     (add-challenger-to-battle! conx clark-id battle2-id)
     (add-winner-to-battle! conx passard-id battle2-id))
 
-  ;; Battle 3: Nakamura vs Passard (Foie gras) - exhibition
+  ;; Battle 3: Nakamura vs Passard (Foie gras) - Draw (no winner)
   (let [battle3-id (create-battle! conx 198 3 "Foie gras")
         nakamura-id (:chefs/id (get-chef-by-name conx "Komei Nakamura"))
         passard-id (:chefs/id (get-chef-by-name conx "Alain Passard"))]
     (add-iron-chef-to-battle! conx nakamura-id battle3-id)
     (add-challenger-to-battle! conx passard-id battle3-id)
-    (add-winner-to-battle! conx nakamura-id battle3-id)))
+    ;; No winner - this was a draw
+    ))
 
 (defn process-1997-table! [conx html-table]
   ;; Table 8: Episodes 161-208 (1997)
@@ -768,15 +766,15 @@
 (defn write-japan-cup! [conx]
   ;; Japan Cup (January 2, 2002) - Episode 295
   ;; Battle 1: Chen Kenichi vs Yūichirō Ebisu (King crab) - Chen wins
-  ;; Battle 2: Kimio Nonaga vs Takeshi Tanabe (Pacific bluefin tuna) - Kimio Nonaga wins
-  ;; Battle 3: Chen Kenichi vs Kimio Nonaga (Ingii chicken) - Kimio Nonaga wins
+  ;; Battle 2: Nonaga vs Tanabe (Pacific bluefin tuna) - Nonaga wins (challenger vs challenger)
+  ;; Battle 3: Chen Kenichi vs Kimio Nonaga (Ingii chicken) - Nonaga wins
 
   (when-not (get-chef-by-name conx "Yūichirō Ebisu")
     (create-chef! conx "Yūichirō Ebisu" "Italian" "Japan"))
   (when-not (get-chef-by-name conx "Kimio Nonaga")
     (create-chef! conx "Kimio Nonaga" "Japanese" "Japan"))
   (when-not (get-chef-by-name conx "Takeshi Tanabe")
-    (create-chef! conx "Takeshi Tanabe" "Japanese" "Japan"))
+    (create-chef! conx "Takeshi Tanabe" "French" "Japan"))
 
   (create-episode! conx 295 "January 2, 2002")
 
@@ -788,11 +786,11 @@
     (add-challenger-to-battle! conx ebisu-id battle1-id)
     (add-winner-to-battle! conx chen-id battle1-id))
 
-  ;; Battle 2: Nonaga vs Tanabe (Pacific bluefin tuna)
+  ;; Battle 2: Nonaga vs Tanabe (Pacific bluefin tuna) - challenger vs challenger
   (let [battle2-id (create-battle! conx 295 2 "Pacific bluefin tuna")
         nonaga-id (:chefs/id (get-chef-by-name conx "Kimio Nonaga"))
         tanabe-id (:chefs/id (get-chef-by-name conx "Takeshi Tanabe"))]
-    (add-iron-chef-to-battle! conx nonaga-id battle2-id)
+    (add-challenger-to-battle! conx nonaga-id battle2-id)
     (add-challenger-to-battle! conx tanabe-id battle2-id)
     (add-winner-to-battle! conx nonaga-id battle2-id))
 
