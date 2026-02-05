@@ -463,10 +463,10 @@
   ;; Battle 1: Chen Kenichi vs Sun Liping, Su Dexing, Zhuang Weijia (Chicken) - Tie
   ;; Battle 2: Chen Kenichi vs Sun Liping (Shark fin) - Tie-breaker, both win
 
-  ;; Create the three Chinese (Beijing) challengers
+  ;; Create the three Chinese challengers (each with different regional cuisine)
   (create-chef! conx "Sun Liping" "Chinese (Beijing)" "China")
-  (create-chef! conx "Su Dexing" "Chinese (Beijing)" "China")
-  (create-chef! conx "Zhuang Weijia" "Chinese (Beijing)" "China")
+  (create-chef! conx "Su Dexing" "Chinese (Shanghai)" "China")
+  (create-chef! conx "Zhuang Weijia" "Chinese (Cantonese)" "China")
 
   (create-episode! conx 149 "October 11, 1996")
 
