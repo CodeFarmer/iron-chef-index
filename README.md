@@ -2,6 +2,10 @@
 
 A Clojure program to convert the HTML data from [the Wikipedia list of Iron Chef episodes](https://en.wikipedia.org/wiki/List_of_Iron_Chef_episodes) into a sqlite database. The end goal is to combine that with the [Internet Archive files for Iron Chef](https://archive.org/details/iron-chef) to provide a comprehensive index of episodes by challenger, season, Iron Chef and ingredient.
 
+I got tired writing all the edge cases at some point and the project quietly died off... then Claude and similar tools arrived, one of whose best use cases was "writing code in situations that human developers find mind-numbingly tedious". So the project was revived and finished over a couple of nights' worth of tokens.
+
+TODO: associating the index with the files from the publicly available internet archive sources of episodes, to allow the "I really want to watch that episode with the homard lobsters" use case.
+
 ## Usage
 
 To reset the database to its empty state:
