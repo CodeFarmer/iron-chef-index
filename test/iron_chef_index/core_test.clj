@@ -920,3 +920,169 @@
         (is (= #{"King crab" "Pacific bluefin tuna" "Ingii chicken"}
                (set (map :battles/theme_ingredient battles)))
             "Japan Cup battles should have correct theme ingredients")))))
+
+;; === Video File Parsing Tests ===
+
+(deftest parse-video-filename-test
+  "Verify video filename parsing handles standard and special cases"
+
+  (testing "Standard dubbed files"
+    (is (= [{:path "IC101.avi" :episode-id 1 :audio "dubbed"}]
+           (parse-video-filename "IC101.avi"))
+        "IC101.avi -> season 1, ep 1 = episode 1, dubbed")
+    (is (= [{:path "IC210.avi" :episode-id 20 :audio "dubbed"}]
+           (parse-video-filename "IC210.avi"))
+        "IC210.avi -> season 2, ep 10 = episode 20, dubbed")
+    (is (= [{:path "IC350.avi" :episode-id 110 :audio "dubbed"}]
+           (parse-video-filename "IC350.avi"))
+        "IC350.avi -> season 3, ep 50 = episode 110, dubbed"))
+
+  (testing "OA (Original Audio) suffix = original"
+    (is (= [{:path "IC310OA.avi" :episode-id 70 :audio "original"}]
+           (parse-video-filename "IC310OA.avi"))
+        "IC310OA.avi -> episode 70, original"))
+
+  (testing "s (subtitled) suffix = subtitled"
+    (is (= [{:path "IC310s.avi" :episode-id 70 :audio "subtitled"}]
+           (parse-video-filename "IC310s.avi"))
+        "IC310s.avi -> episode 70, subtitled"))
+
+  (testing "OT suffix = original"
+    (is (= [{:path "IC310OT.avi" :episode-id 70 :audio "original"}]
+           (parse-video-filename "IC310OT.avi"))
+        "IC310OT.avi -> episode 70, original"))
+
+  (testing "Part suffixes keep audio type"
+    (is (= [{:path "IC310-Pt1.avi" :episode-id 70 :audio "dubbed"}]
+           (parse-video-filename "IC310-Pt1.avi"))
+        "IC310-Pt1.avi -> episode 70, dubbed (part suffix only)")
+    (is (= [{:path "IC310a.avi" :episode-id 70 :audio "dubbed"}]
+           (parse-video-filename "IC310a.avi"))
+        "IC310a.avi -> episode 70, dubbed (a/b part suffix)")
+    (is (= [{:path "IC310OA-Pt1.avi" :episode-id 70 :audio "original"}]
+           (parse-video-filename "IC310OA-Pt1.avi"))
+        "IC310OA-Pt1.avi -> episode 70, original (OA + part)"))
+
+  (testing "Season offsets are applied correctly"
+    (is (= [{:path "IC11.avi" :episode-id 1 :audio "dubbed"}]
+           (parse-video-filename "IC11.avi"))
+        "Season 1, ep 1 = episode 1 (base 0)")
+    (is (= [{:path "IC21.avi" :episode-id 11 :audio "dubbed"}]
+           (parse-video-filename "IC21.avi"))
+        "Season 2, ep 1 = episode 11 (base 10)")
+    (is (= [{:path "IC31.avi" :episode-id 61 :audio "dubbed"}]
+           (parse-video-filename "IC31.avi"))
+        "Season 3, ep 1 = episode 61 (base 60)")
+    (is (= [{:path "IC41.avi" :episode-id 111 :audio "dubbed"}]
+           (parse-video-filename "IC41.avi"))
+        "Season 4, ep 1 = episode 111 (base 110)")
+    (is (= [{:path "IC51.avi" :episode-id 163 :audio "dubbed"}]
+           (parse-video-filename "IC51.avi"))
+        "Season 5, ep 1 = episode 163 (base 162)")
+    (is (= [{:path "IC61.avi" :episode-id 211 :audio "dubbed"}]
+           (parse-video-filename "IC61.avi"))
+        "Season 6, ep 1 = episode 211 (base 210)"))
+
+  (testing "Special case: IC415-416 -> two episodes"
+    (is (= [{:path "IC415-416.avi" :episode-id 125 :audio "dubbed"}
+            {:path "IC415-416.avi" :episode-id 126 :audio "dubbed"}]
+           (parse-video-filename "IC415-416.avi"))
+        "IC415-416.avi -> episodes 125 and 126 (France Special)"))
+
+  (testing "Special case: IC452OA-NYE -> episode 162"
+    (is (= [{:path "IC452OA-NYE1.zip" :episode-id 162 :audio "original"}]
+           (parse-video-filename "IC452OA-NYE1.zip"))
+        "IC452OA-NYE1.zip -> episode 162, original")
+    (is (= [{:path "IC452OA-NYE2.zip" :episode-id 162 :audio "original"}]
+           (parse-video-filename "IC452OA-NYE2.zip"))
+        "IC452OA-NYE2.zip -> episode 162, original"))
+
+  (testing "Special case: IC315OA85 -> episode 75"
+    (is (= [{:path "IC315OA85-Pt1.avi" :episode-id 75 :audio "original"}]
+           (parse-video-filename "IC315OA85-Pt1.avi"))
+        "IC315OA85-Pt1.avi -> episode 75, original")
+    (is (= [{:path "IC315OA85-Pt2.avi" :episode-id 75 :audio "original"}]
+           (parse-video-filename "IC315OA85-Pt2.avi"))
+        "IC315OA85-Pt2.avi -> episode 75, original"))
+
+  (testing "Special case: 97ICWC -> episode 198"
+    (is (= [{:path "97ICWC1OA.avi" :episode-id 198 :audio "original"}]
+           (parse-video-filename "97ICWC1OA.avi"))
+        "97ICWC1OA.avi -> episode 198, original (OA)")
+    (is (= [{:path "97ICWCpt2.avi" :episode-id 198 :audio "dubbed"}]
+           (parse-video-filename "97ICWCpt2.avi"))
+        "97ICWCpt2.avi -> episode 198, dubbed (no OA)"))
+
+  (testing "Non-video files return nil"
+    (is (nil? (parse-video-filename "notes.txt"))
+        ".txt files should be skipped")
+    (is (nil? (parse-video-filename "index.sqlite.part"))
+        ".part files should be skipped")
+    (is (nil? (parse-video-filename "metadata.xml"))
+        ".xml files should be skipped"))
+
+  (testing "Beijing files return nil"
+    (is (nil? (parse-video-filename "BeijingFinal.zip"))
+        "BeijingFinal.zip should be skipped")
+    (is (nil? (parse-video-filename "BeijingPre.zip"))
+        "BeijingPre.zip should be skipped"))
+
+  (testing "Invalid season returns nil"
+    (is (nil? (parse-video-filename "IC710.avi"))
+        "Season 7 doesn't exist"))
+
+  (testing "mp4 and zip extensions work"
+    (is (= [{:path "IC310.mp4" :episode-id 70 :audio "dubbed"}]
+           (parse-video-filename "IC310.mp4"))
+        "mp4 files are parsed")
+    (is (= [{:path "IC310.zip" :episode-id 70 :audio "dubbed"}]
+           (parse-video-filename "IC310.zip"))
+        "zip files are parsed"))
+
+  (testing "Verified mapping: IC452 = episode 162 (NYE special)"
+    (is (= [{:path "IC452.avi" :episode-id 162 :audio "dubbed"}]
+           (parse-video-filename "IC452.avi"))
+        "IC452 should map to episode 162 (season 4 base 110 + 52)")))
+
+(deftest scan-videos-test
+  "Verify scan-videos! populates movie_files from a directory of video files"
+  (jdbc/with-transaction [conx ds {:rollback-only true}]
+    (execute! conx)
+
+    ;; Create a temp directory with some fake video files
+    (let [tmp-dir (java.io.File/createTempFile "ic-videos" "")
+          _ (.delete tmp-dir)
+          _ (.mkdirs tmp-dir)]
+      (try
+        ;; Create test files
+        (doseq [name ["IC101.avi"         ;; ep 1
+                       "IC210.avi"         ;; ep 20
+                       "IC310OA.avi"       ;; ep 70, original audio
+                       "IC710.avi"         ;; invalid season, should skip
+                       "notes.txt"         ;; non-video, should skip
+                       "BeijingFinal.zip"  ;; should skip
+                       ]]
+          (.createNewFile (java.io.File. tmp-dir name)))
+
+        (scan-videos! conx (.getAbsolutePath tmp-dir))
+
+        (let [rows (jdbc/execute! conx ["select * from movie_files order by episode_id"])]
+          (testing "Only valid video files are inserted"
+            (is (= 3 (count rows))
+                "Should have 3 movie file records"))
+
+          (testing "Episode IDs are correct"
+            (is (= [1 20 70] (map :movie_files/episode_id rows))))
+
+          (testing "Audio types are correct"
+            (is (= ["dubbed" "dubbed" "original"] (map :movie_files/audio rows))
+                "First two should be dubbed, third should be original"))
+
+          (testing "Paths are filenames"
+            (is (= ["IC101.avi" "IC210.avi" "IC310OA.avi"]
+                   (map :movie_files/path rows)))))
+
+        (finally
+          ;; Clean up temp files
+          (doseq [f (.listFiles tmp-dir)] (.delete f))
+          (.delete tmp-dir))))))

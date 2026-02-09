@@ -54,9 +54,10 @@ CREATE TABLE winners_battles (
 
 DROP TABLE IF EXISTS movie_files;
 CREATE TABLE movie_files (
-  path STRING PRIMARY KEY,
+  path STRING NOT NULL,
   episode_id INTEGER NOT NULL,
-  dubbed BOOLEAN NOT NULL,
+  audio STRING NOT NULL,
+  PRIMARY KEY(path, episode_id),
   FOREIGN KEY(episode_id) REFERENCES episodes(id)
 );
 

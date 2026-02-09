@@ -865,6 +865,97 @@
   (write-21st-century-battles! conx)
   (write-japan-cup! conx))
 
+;; === Video File Scanning ===
+
+(def season-base
+  "Map of Iron Chef season number to base episode offset.
+   Wikipedia episode = season-base + episode-within-season."
+  {1 0, 2 10, 3 60, 4 110, 5 162, 6 210})
+
+(defn ic-episode-number
+  "Given a season and episode-within-season, return the Wikipedia episode number."
+  [season episode]
+  (+ (get season-base season) episode))
+
+(def ^:private video-extensions #{"avi" "mp4" "zip"})
+
+(defn- suffix->audio
+  "Determine audio type from the suffix portion of a filename.
+   Returns \"dubbed\", \"subtitled\", or \"original\"."
+  [suffix]
+  (cond
+    (re-find #"^s" suffix)      "subtitled"
+    (re-find #"OA|OT" suffix)   "original"
+    :else                        "dubbed"))
+
+(defn parse-video-filename
+  "Parse an Iron Chef video filename into a seq of maps with :path, :episode-id, :audio.
+   :audio is \"dubbed\", \"subtitled\", or \"original\".
+   Returns nil for unparseable or non-video files.
+
+   Standard format: IC[season][episode][suffix].[ext]
+   Suffixes: OA/OT = original audio, s = subtitled, -Pt1/-Pt2/a/b = multi-part
+   Special cases: IC415-416, IC315OA85-Pt1/Pt2, IC452OA-NYE*, 97ICWC*"
+  [filename]
+  (let [ext (last (s/split filename #"\."))]
+    (when (contains? video-extensions ext)
+      (cond
+        ;; Skip Beijing files - no clear episode mapping
+        (s/starts-with? filename "Beijing")
+        nil
+
+        ;; 97ICWC* -> episode 198 (1997 World Cup)
+        (re-find #"^97ICWC" filename)
+        (let [audio (if (re-find #"OA" filename) "original" "dubbed")]
+          [{:path filename :episode-id 198 :audio audio}])
+
+        ;; IC415-416 -> two episodes (125, 126)
+        (re-find #"^IC415-416" filename)
+        [{:path filename :episode-id (ic-episode-number 4 15) :audio "dubbed"}
+         {:path filename :episode-id (ic-episode-number 4 16) :audio "dubbed"}]
+
+        ;; IC452OA-NYE* -> episode 162 (season 4, ep 52)
+        (re-find #"^IC452OA-NYE" filename)
+        [{:path filename :episode-id (ic-episode-number 4 52) :audio "original"}]
+
+        ;; IC315OA85-Pt* -> episode 75 (season 3, ep 15; ignore "85")
+        (re-find #"^IC315OA85" filename)
+        [{:path filename :episode-id (ic-episode-number 3 15) :audio "original"}]
+
+        ;; Standard: IC[S][EE][suffix].[ext]
+        :else
+        (when-let [[_ season-str ep-str rest-str] (re-find #"^IC(\d)(\d+)(.*)\.\w+$" filename)]
+          (let [season (Integer/parseInt season-str)
+                episode (Integer/parseInt ep-str)
+                audio (suffix->audio rest-str)]
+            (when (contains? season-base season)
+              [{:path filename
+                :episode-id (ic-episode-number season episode)
+                :audio audio}])))))))
+
+(defn create-movie-file!
+  "Insert a row into the movie_files table."
+  [conx path episode-id audio]
+  (jdbc/execute-one! conx
+                     ["insert into movie_files(path, episode_id, audio) values(?, ?, ?)"
+                      path episode-id audio]))
+
+(defn scan-videos!
+  "Scan a directory for Iron Chef video files and populate movie_files table.
+   Skips files that don't parse or whose episode_id doesn't exist in the episodes table."
+  [conx dir-path]
+  (let [dir (java.io.File. dir-path)
+        files (when (.isDirectory dir) (.listFiles dir))
+        episode-ids (set (map :episodes/id (get-all-episodes conx)))]
+    (doseq [file files
+            :when (.isFile file)
+            :let [filename (.getName file)
+                  parsed (parse-video-filename filename)]
+            :when parsed
+            entry parsed
+            :when (contains? episode-ids (:episode-id entry))]
+      (create-movie-file! conx (:path entry) (:episode-id entry) (:audio entry)))))
+
 (defn execute! [conx]
   (let [html-tables (get-tables (parse-html-file))]
     (bootstrap-iron-chefs! conx)
@@ -889,4 +980,9 @@
 
 (defn -main [& args]
   (with-open [conx (jdbc/get-connection (jdbc/get-datasource {:dbtype "sqlite" :dbname "index.sqlite"}))]
-    (execute! conx)))
+    (execute! conx)
+    (when-let [video-dir (first args)]
+      (println "Scanning video files in" video-dir)
+      (scan-videos! conx video-dir)
+      (let [count (:count (jdbc/execute-one! conx ["select count(*) as count from movie_files"]))]
+        (println "Inserted" count "movie file records")))))

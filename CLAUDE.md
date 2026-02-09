@@ -16,16 +16,17 @@ Clojure program that parses the Wikipedia "List of Iron Chef episodes" HTML page
 
 ## Database Schema
 
-Six tables with a battles-based join model:
+Seven tables with a battles-based join model:
 
 - **chefs** - All chefs (Iron Chefs and challengers). Fields: `id`, `name` (UNIQUE), `native_name`, `cuisine`, `nationality`
 - **episodes** - Episode records. `id` is the episode number (1-295), plus `air_date`
 - **battles** - Individual battles within episodes. Fields: `episode_id`, `battle_number` (default 1), `theme_ingredient`. Episodes can have multiple battles (tournament/special episodes)
 - **iron_chefs_battles** / **challengers_battles** / **winners_battles** - Join tables linking chefs to specific battles
+- **movie_files** - Links Internet Archive video files to episodes. Fields: `path`, `episode_id`, `audio` ("dubbed", "subtitled", or "original"). Primary key is `(path, episode_id)` to support files that span multiple episodes (e.g. IC415-416.avi)
 
 ## Architecture
 
-Single-namespace app in `src/iron_chef_index/core.clj`. Data flows through four layers:
+Two namespaces: `iron-chef-index.core` (parsing and database population) and `iron-chef-index.output` (HTML index generation). Core data flows through four layers:
 
 1. **HTML Parsing** - `parse-html-file` reads the Wikipedia HTML; `get-tables` finds all 16 `wikitable` elements via hickory (HTML parser). Each table corresponds to a year or group of episodes.
 2. **Table-to-Map Conversion** - `table-to-maps` converts HTML rows into Clojure maps keyed by column header (e.g., `{"Episode #" [...], "Iron Chef" [...], ...}`). `zipmulti` handles duplicate column names (tables with multiple "Challenger" columns). `spanned-rows-to-map` handles `rowspan` attributes.
@@ -52,6 +53,14 @@ Year-specific `process-YYYY-table!` functions use `take`/`drop` with hardcoded r
 ### Episodes with Special Handling
 
 61, 73, 99, 101-102, 110, 111, 124, 149, 160, 163, 164, 190, 193, 194, 198, 239, 292-295. These have dedicated `write-episode-N!` functions because of team battles, tournaments, irregular HTML, ties, or no-contests.
+
+### Video File Scanning
+
+`parse-video-filename` maps Internet Archive filenames to episode IDs using a season-base offset system (`IC[season][episode][suffix].[ext]`). The `suffix->audio` helper classifies audio: `s` → "subtitled", `OA`/`OT` → "original", no suffix → "dubbed". Special-case handlers exist for `97ICWC*`, `IC415-416`, `IC452OA-NYE*`, and `IC315OA85*`. `scan-videos!` scans a directory and populates `movie_files`.
+
+### HTML Output
+
+`iron-chef-index.output` generates a static HTML index page from the populated database, grouped by season (1-6 + Specials). Each episode row shows air date, theme ingredient, chefs, winner, and video file links. Multi-battle episodes use rowspan. `write-index!` writes the HTML to a given path.
 
 ## Testing
 
