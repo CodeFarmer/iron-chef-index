@@ -19,6 +19,28 @@
       (s/replace ">" "&gt;")
       (s/replace "\"" "&quot;")))
 
+(defn- parse-names
+  "Split a comma-separated name string into a set of trimmed names."
+  [s]
+  (if s
+    (->> (s/split s #",")
+         (map s/trim)
+         (remove empty?)
+         set)
+    #{}))
+
+(defn- classify-result
+  "Classify a battle result as :iron-chef-win, :challenger-win, or :other."
+  [iron-chefs challengers winners]
+  (let [ic-names (parse-names iron-chefs)
+        ch-names (parse-names challengers)
+        win-names (parse-names winners)]
+    (cond
+      (empty? win-names) :other
+      (and (seq ic-names) (every? ic-names win-names)) :iron-chef-win
+      (and (seq ch-names) (every? ch-names win-names)) :challenger-win
+      :else :other)))
+
 (defn- query-battles
   "Query all battles with episode info, chef names, ordered by episode and battle number."
   [conx]
@@ -57,23 +79,33 @@
                     (escape-html path) " (" (escape-html audio) ")</a>")))
            files))))
 
+(defn- result-class
+  "Return the CSS class for a battle result."
+  [result]
+  (case result
+    :iron-chef-win "iron-chef-win"
+    :challenger-win "challenger-win"
+    "other-result"))
+
 (defn- render-battle-row
   "Render a <tr> for a single battle. When first-battle? is true, emits the
    episode-level cells (ep #, air date, video) with rowspan if needed."
   [battle num-battles files first-battle?]
-  (str "  <tr>\n"
-       (when first-battle?
-         (let [rs (when (> num-battles 1) (str " rowspan=\"" num-battles "\""))]
-           (str "    <td" rs ">" (:episodes/episode_id battle) "</td>\n"
-                "    <td" rs ">" (escape-html (:episodes/air_date battle)) "</td>\n")))
-       "    <td>" (escape-html (:battles/theme_ingredient battle)) "</td>\n"
-       "    <td>" (escape-html (or (:iron_chefs battle) "")) "</td>\n"
-       "    <td>" (escape-html (or (:challengers battle) "")) "</td>\n"
-       "    <td>" (escape-html (or (:winners battle) "")) "</td>\n"
-       (when first-battle?
-         (let [rs (when (> num-battles 1) (str " rowspan=\"" num-battles "\""))]
-           (str "    <td" rs ">" (or (render-file-links files) "") "</td>\n")))
-       "  </tr>\n"))
+  (let [result (classify-result (:iron_chefs battle) (:challengers battle) (:winners battle))
+        winner-class (result-class result)]
+    (str "  <tr>\n"
+         (when first-battle?
+           (let [rs (when (> num-battles 1) (str " rowspan=\"" num-battles "\""))]
+             (str "    <td" rs ">" (:episodes/episode_id battle) "</td>\n"
+                  "    <td" rs ">" (escape-html (:episodes/air_date battle)) "</td>\n")))
+         "    <td>" (escape-html (:battles/theme_ingredient battle)) "</td>\n"
+         "    <td>" (escape-html (or (:iron_chefs battle) "")) "</td>\n"
+         "    <td>" (escape-html (or (:challengers battle) "")) "</td>\n"
+         "    <td class=\"" winner-class "\">" (escape-html (or (:winners battle) "")) "</td>\n"
+         (when first-battle?
+           (let [rs (when (> num-battles 1) (str " rowspan=\"" num-battles "\""))]
+             (str "    <td" rs ">" (or (render-file-links files) "") "</td>\n")))
+         "  </tr>\n")))
 
 (defn- render-episode [battles files]
   (let [n (count battles)]
@@ -123,6 +155,9 @@
       "    th { background: #333; color: #fff; }\n"
       "    tr:nth-child(even) { background: #f6f6f6; }\n"
       "    a { color: #06c; }\n"
+      "    .iron-chef-win { background: #ffd700; }\n"
+      "    .challenger-win { background: #90ee90; }\n"
+      "    .other-result { background: #d3d3d3; }\n"
       "  </style>\n"
       "</head>\n"
       "<body>\n"
